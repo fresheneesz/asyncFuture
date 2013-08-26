@@ -1,8 +1,11 @@
 {"name":"asyncFuture",
  "version":"0.1.0",
- "dependencies":[
-    "git+https://git@github.com/fresheneesz/trimArguments.git#19497a05e0ad03544ef5d1bfcc19f7b9c3583379"
- ],
+ "dependencies":{
+    "trimArguments": "git+https://git@github.com/fresheneesz/trimArguments.git#19497a05e0ad03544ef5d1bfcc19f7b9c3583379"
+ },
+ "devDependencies": {
+    "deadunit":"git+https://git@github.com/fresheneesz/deadunit.git#8395e438492267b94ef51ee4f94a6d6c8f1c15da"
+ },
  "repository": {
    "type": "git",
    "url": "git://github.com/fresheneesz/asyncFuture"
