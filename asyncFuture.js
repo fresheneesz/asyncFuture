@@ -68,15 +68,15 @@ Future.wrap = function() {
         var fn = object[arguments[1]]
     }
 
-	return function() {
-		var args = Array.prototype.slice.call(arguments)
-		var future = new Future
-		args.push(future.resolver())
-		var me = this
+    return function() {
+        var args = Array.prototype.slice.call(arguments)
+        var future = new Future
+        args.push(future.resolver())
+        var me = this
         if(object) me = object
         fn.apply(me, args)
-		return future
-	}
+        return future
+    }
 }
 
 
