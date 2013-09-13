@@ -3,14 +3,18 @@
 var trimArgs = require("trimArguments")
 
 // todo:
-// * timeout
+// * timeout or cancelation (probably cancellation is more general)
 // * Long stack traces
 
 module.exports = Future
 
-function Future() {
-    this.resolved = false
-    this.queue = []
+function Future(value) {
+	this.resolved = false
+    this.queue = []	
+	
+	if(arguments.length > 0) {
+		//this.return(value)
+	}
 }
 
 // static methods
@@ -106,8 +110,8 @@ Future.prototype.throw = function(e) {
     resolve(this, 'error', e)
 }
 function setNext(that, future) {
-    if((!future instanceof Future))
-        unhandledErrorHandler(Error("Value returned from then or catch *not* a Future: "+result))
+    if(!(future instanceof Future) && future !== undefined)
+        unhandledErrorHandler(Error("Value returned from then or catch *not* a Future: "+future))
     resolve(that, 'next', future)
 }
 
@@ -232,10 +236,11 @@ function resolve(that, type, value) {
 
     if(that.hasError)
         that.error = value
-    else if(that.hasNext)
-        that.next = value
     else
         that.result = value
+
+    if(that.hasNext)
+        that.next = value
 
     executeCallbacks(that, that.queue)
 }
