@@ -166,6 +166,8 @@ var test = Unit.test("Testing async futures", function() {
     })
 
     t.test("working with callbacks", function(t) {
+        var t = this
+
         function asyncFn(cb) {
             cb(undefined, "hi")
         }
@@ -208,6 +210,17 @@ var test = Unit.test("Testing async futures", function() {
         futures.push(f12)
 
         expectedAsserts += 4
+    })
+
+    t.test("immediate futures", function(t) {
+        var t = this
+
+        Future(true).then(function(v) {
+            t.equal(v,true)
+            countAsserts++
+        })
+
+        expectedAsserts += 1
     })
 
       /*

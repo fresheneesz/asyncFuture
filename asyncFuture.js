@@ -9,12 +9,14 @@ var trimArgs = require("trimArguments")
 module.exports = Future
 
 function Future(value) {
-	this.resolved = false
-    this.queue = []	
-	
 	if(arguments.length > 0) {
-		//this.return(value)
-	}
+		var f = new Future()
+        f.return(value)
+        return f
+	} else {
+        this.resolved = false
+        this.queue = []
+    }
 }
 
 // static methods
