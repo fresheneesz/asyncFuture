@@ -2,6 +2,7 @@
 
 var Unit = require('deadunit')
 var Future = require('../asyncFuture')
+Future.debug = true
 
 var futures = []
 var test = Unit.test("Testing async futures", function() {
@@ -10,6 +11,7 @@ var test = Unit.test("Testing async futures", function() {
     var expectedAsserts = 0
 
     var f = new Future()
+    this.ok(f.id !== undefined, f.id)
     f.return(5)
     f.then(function(v) {
         t.ok(v===5)  // return before
@@ -17,6 +19,8 @@ var test = Unit.test("Testing async futures", function() {
     }).done()
 
     var f2 = new Future()
+    this.ok(f2.id !== undefined, f2.id)
+    this.ok(f.id !== f2.id)
     f2.then(function(v) {
         t.ok(v===6)  // return after
         countAsserts++
@@ -27,6 +31,24 @@ var test = Unit.test("Testing async futures", function() {
     futures.push(f2)
 
     expectedAsserts += 2
+
+    Future.debug = false
+    var nondebugTest = new Future
+    this.ok(nondebugTest.nondebugTest === undefined)
+
+    t.test("immediate future", function() {
+        var f2p1 = new Future()
+        f2p1.then(function(v) {
+            return Future([6+4]) // immediate future
+        }).then(function(v) {
+            t.ok(v[0]===10)
+            countAsserts++
+        }).done()
+        f2p1.return(6)
+        futures.push(f2p1)
+
+        expectedAsserts += 1
+    })
 
     var f3
     t.test("exceptions", function() {
@@ -174,6 +196,11 @@ var test = Unit.test("Testing async futures", function() {
         function asyncException(cb) {
             cb(Error("callbackException"))
         }
+        
+        var objectWithMethods = {
+			asyncFn: asyncFn,
+			asyncException: asyncException
+		}
 
         // resolver
 
@@ -193,7 +220,7 @@ var test = Unit.test("Testing async futures", function() {
         })
         futures.push(f10)
 
-        // wrap
+        // wrap functions
 
         var f11 = Future.wrap(asyncFn)()
         f11.then(function(x) {
@@ -208,8 +235,24 @@ var test = Unit.test("Testing async futures", function() {
             countAsserts++
         })
         futures.push(f12)
+                
+		// wrap methods
 
-        expectedAsserts += 4
+        var f13 = Future.wrap(objectWithMethods, 'asyncFn')()
+        f13.then(function(x) {
+            t.ok(x === 'hi')
+            countAsserts++
+        })
+        futures.push(f13)
+
+        var f14 = Future.wrap(objectWithMethods, 'asyncException')()
+        f14.catch(function(e) {
+            t.ok(e.message === 'callbackException')
+            countAsserts++
+        })
+        futures.push(f14)            
+
+        expectedAsserts += 6
     })
 
     t.test("immediate futures", function(t) {

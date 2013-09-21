@@ -8,6 +8,9 @@ var trimArgs = require("trimArguments")
 
 module.exports = Future
 
+Future.debug = false // switch this to true if you want ids and long stack traces
+Future.n = 0    // for ids
+
 function Future(value) {
 	if(arguments.length > 0) {
 		var f = new Future()
@@ -16,6 +19,10 @@ function Future(value) {
 	} else {
         this.resolved = false
         this.queue = []
+        if(Future.debug) {
+            Future.n++
+            this.id = Future.n
+        }
     }
 }
 
@@ -113,7 +120,8 @@ Future.prototype.throw = function(e) {
 }
 function setNext(that, future) {
     if(!(future instanceof Future) && future !== undefined)
-        unhandledErrorHandler(Error("Value returned from then or catch *not* a Future: "+future))
+        throw Error("Value returned from then or catch *not* a Future: "+future)
+
     resolve(that, 'next', future)
 }
 
@@ -126,20 +134,17 @@ function wait(that, cb) {
 }
 
 function waitOnResult(f, result, cb) {
-    if(result !== undefined)
-        wait(result, function() {
-            if(this.hasError)
-                f.throw(this.error)
-            else {
-                try {
-                    setNext(f, cb(this.result))
-                } catch(e) {
-                    f.throw(e)
-                }
+    wait(result, function() {
+        if(this.hasError)
+            f.throw(this.error)
+        else {
+            try {
+                setNext(f, cb(this.result))
+            } catch(e) {
+                f.throw(e)
             }
-        })
-    else
-        f.return(cb())
+        }
+    })
 }
 
 
@@ -234,7 +239,7 @@ function resolve(that, type, value) {
 
     that.resolved = true
     that.hasError = type === 'error'
-    that.hasNext = type === 'next'
+    that.hasNext = type === 'next' && value !== undefined
 
     if(that.hasError)
         that.error = value

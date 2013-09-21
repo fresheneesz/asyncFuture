@@ -1,5 +1,5 @@
 {"name":"asyncFuture",
- "version":"0.1.0",
+ "version":"0.1.1",
  "main": "asyncFuture.js",
  "dependencies":{
     "trimArguments": "git+https://git@github.com/fresheneesz/trimArguments.git#e69ed3ebdfe6cf055916ba6e3a1e4b28f696da6f"
