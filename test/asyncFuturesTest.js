@@ -258,12 +258,33 @@ var test = Unit.test("Testing async futures", function() {
     t.test("immediate futures", function(t) {
         var t = this
 
-        Future(true).then(function(v) {
-            t.equal(v,true)
-            countAsserts++
-        })
+        futures.push(
+            Future(true).then(function(v) {
+                t.equal(v,true)
+                countAsserts++
+            })
+        )
 
         expectedAsserts += 1
+    })
+
+    t.test("former bugs", function() {
+        this.test("Return result of then", function(t) {
+            var f = Future(true).then(function() {
+                return Future(true).then(function() {
+                    return Future('wutup')
+                })
+            })
+
+            futures.push(
+                f.then(function(result) {
+                    t.ok(result === 'wutup', result)
+                    countAsserts++
+                })
+            )
+
+            expectedAsserts += 1
+        })
     })
 
       /*

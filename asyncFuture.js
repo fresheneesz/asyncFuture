@@ -135,9 +135,11 @@ function wait(that, cb) {
 
 function waitOnResult(f, result, cb) {
     wait(result, function() {
-        if(this.hasError)
+        if(this.hasError) {
             f.throw(this.error)
-        else {
+        } else if(this.hasNext) {
+            waitOnResult(f, this.next, cb)
+        } else {
             try {
                 setNext(f, cb(this.result))
             } catch(e) {
@@ -243,11 +245,10 @@ function resolve(that, type, value) {
 
     if(that.hasError)
         that.error = value
+    else if(that.hasNext)
+        that.next = value
     else
         that.result = value
-
-    if(that.hasNext)
-        that.next = value
 
     executeCallbacks(that, that.queue)
 }

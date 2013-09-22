@@ -1,4 +1,4 @@
-{"name":"asyncFuture",
+{"name":"async-future",
  "version":"0.1.1",
  "main": "asyncFuture.js",
  "dependencies":{
