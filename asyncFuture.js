@@ -2,9 +2,6 @@
 
 var trimArgs = require("trimArguments")
 
-// todo:
-// * timeout or cancelation (probably cancellation is more general)
-// * Long stack traces
 
 module.exports = Future
 

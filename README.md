@@ -57,6 +57,19 @@ Usage
 var Future = require('async-future')
 ```
 
+future-chains
+-------------
+
+The most important part of `async-future` is future-chains. These are chains that have try-catch-finally style semantics, but are asynchronous.
+Future-chains consist of chains of `then`, `catch`, and `finally` calls. 
+All three of those methods return a `new Future` that is resolved either:
+	
+* if the callback returns nothing (aka `undefined`), when the callback of that method returns. In this case, the future returns undefined as well.
+* if the callback returns a future, when the returned future resolves. In this case, the `new Future` returned by the method resolves to the same thing as the future returned from the method's callback.
+
+Exceptions bubble through chained `then`s and `finally`s, similar to how in a regular try-catch, exceptions bubble through function calls and finally blocks.
+The `done` method should be called on every future that doesn't call one of the chain methods (`then`, `catch`, or `finally), and also doesn't call `resolver`, so that thrown exceptions won't get lost.
+
 Instance properties
 -------------------
 
@@ -111,12 +124,16 @@ aFuture(false).then(function(result) {
 	
 * Example: `var wrappedMethod = Future.wrap(object, 'methodName')`
 
-// either used like futureWrap(function(){ ... })(arg1,arg2,etc) or
-//  futureWrap(object, 'methodName')(arg1,arg2,etc)
+`Future.error(<handler>)` - sets up a function that is called when an unhandled error happens. `<handler>` gets one parameter, the unhandled exception. Unhandled errors happen when `done` is called and an exception is thrown from the future.
 
-`Future.error(<handler>)` - sets up a function that is called when an unhandled error happens. `<handler` gets one parameter, the unhandled exception. Unhandled errors happen when `done` is called and an exception is thrown from the future.
+`Future.debug` - if true, gives each future a unique id (default is `false`)
 
-`Future.debug` - if true, gives each future a unique id (default is false)
+
+Todo
+====
+
+* timeout or cancelation (probably cancellation is more general)
+* Long stack traces
 
 How to Contribute!
 ============
