@@ -1,14 +1,26 @@
 {"name":"async-future",
+ "description": "A powerful and yet simple futures library for javascript in node.js and in-browser.",
+ "keywords": ["future", "promise", "deferred", "async", "parallel", "thread", "concurrency"],
  "version":"0.1.1",
  "main": "asyncFuture.js",
- "dependencies":{
-    "trimArguments": "git+https://git@github.com/fresheneesz/trimArguments.git#e69ed3ebdfe6cf055916ba6e3a1e4b28f696da6f"
- },
- "devDependencies": {
-    "deadunit":"git+https://git@github.com/fresheneesz/deadunit.git#f4eaca6297aece8f47ce58a2a022463f5e27d48b"
+ "author": "Billy Tetrud <bitetrudpublic@gmail.com> (https://github.com/fresheneesz/)",
+ "license": {
+   "name": "MIT",
+   "url": "http://www.opensource.org/licenses/mit-license.php"
  },
  "repository": {
    "type": "git",
    "url": "git://github.com/fresheneesz/asyncFuture"
+ },
+ "dependencies":{
+    "trimArguments": "git+https://git@github.com/fresheneesz/trimArguments.git#e69ed3ebdfe6cf055916ba6e3a1e4b28f696da6f",
+    "buildModules":"git+https://git@github.com/fresheneesz/buildModules.git#2f50ea0830b0fa580c087b4bfa947de2e7b7d7c3"
+ },
+ "devDependencies": {
+    "deadunit":""
+ },
+ "scripts": {
+   "postinstall": "node build",
+   "test": "node test/asyncFuturesTest.js"
  }
 }
