@@ -1,7 +1,7 @@
 `async-future`
 ============
 
-A simple, powerful library for managing asynchronous control flow and saner handling of asynchronous exceptions.
+A simple, powerful library for managing asynchronous control flow and saner handling of asynchronous exceptions in `node.js` and the `browser` (soon).
 
 Why use async-future?
 =====================
@@ -49,7 +49,6 @@ Install
 npm install async-future
 ```
 
-
 Usage
 =====
 
@@ -61,9 +60,9 @@ future-chains
 -------------
 
 The most important part of `async-future` is future-chains. These are chains that have try-catch-finally style semantics, but are asynchronous.
-Future-chains consist of chains of `then`, `catch`, and `finally` calls. 
+Future-chains consist of chains of `then`, `catch`, and `finally` calls.
 All three of those methods return a `new Future` that is resolved either:
-	
+
 * if the callback returns nothing (aka `undefined`), when the callback of that method returns. In this case, the future returns undefined as well.
 * if the callback returns a future, when the returned future resolves. In this case, the `new Future` returned by the method resolves to the same thing as the future returned from the method's callback.
 
@@ -102,7 +101,7 @@ Example:
 function a(x, errback) {
 	if(x === false)
 		errback(Error('x isnt true : ('))
-	else 
+	else
 		errback(undefined, x)
 }
 
@@ -116,12 +115,12 @@ aFuture(5).then(function(result) {
 // prints an exception
 aFuture(false).then(function(result) {
 	console.log(result) // never gets here
-}).done() 
+}).done()
 
 ```
 
 `Future.wrap(<object>, <method)` - wraps a method that takes an errback so that it returns a future instead of calling an errback. Example:
-	
+
 * Example: `var wrappedMethod = Future.wrap(object, 'methodName')`
 
 `Future.error(<handler>)` - sets up a function that is called when an unhandled error happens. `<handler>` gets one parameter, the unhandled exception. Unhandled errors happen when `done` is called and an exception is thrown from the future.
@@ -132,8 +131,16 @@ aFuture(false).then(function(result) {
 Todo
 ====
 
+* Browser support (via ) [build-modules](https://github.com/fresheneesz/buildModules)
+* Browser testing
+ * Chrome [ ]
+ * Firefox [ ]
+ * IE10 [ ]
+ * IE9 [ ]
+ * IE8 [ ]
+ * Opera [ ]
 * timeout or cancelation (probably cancellation is more general)
-* Long stack traces
+* Long stack traces (where possible)
 
 How to Contribute!
 ============
@@ -158,9 +165,7 @@ How to submit pull requests:
 
 Contributors
 ============
-* Special thanks to [kriskowal][kriskowal], who's project [Q promises][qPromises] gave me inspiration for this project.
-
-[Q promises](https://github.com/kriskowal/q)
+* Special thanks to [kriskowal](kriskowal), who's project [Q promises](qPromises) gave me inspiration for this project.
 
 [jayferd]: https://github.com/kriskowal
 [qPromises]: https://github.com/kriskowal/q
