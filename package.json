@@ -1,7 +1,7 @@
 {"name":"async-future",
  "description": "A powerful and yet simple futures library for javascript in node.js and in-browser.",
  "keywords": ["future", "promise", "deferred", "async", "parallel", "thread", "concurrency"],
- "version":"0.1.2",
+ "version":"0.1.3",
  "main": "asyncFuture.js",
  "author": "Billy Tetrud <bitetrudpublic@gmail.com> (https://github.com/fresheneesz/)",
  "license": {
@@ -13,8 +13,8 @@
    "url": "git://github.com/fresheneesz/asyncFuture"
  },
  "dependencies":{
-    "trimArguments": "git+https://git@github.com/fresheneesz/trimArguments.git#e69ed3ebdfe6cf055916ba6e3a1e4b28f696da6f",
-    "buildModules":"git+https://git@github.com/fresheneesz/buildModules.git#2f50ea0830b0fa580c087b4bfa947de2e7b7d7c3"
+    "trimArguments": "https://github.com/fresheneesz/trimArguments/archive/e69ed3ebdfe6cf055916ba6e3a1e4b28f696da6f.tar.gz",
+    "buildModules":"https://github.com/fresheneesz/buildModules/archive/2f50ea0830b0fa580c087b4bfa947de2e7b7d7c3.tar.gz"
  },
  "devDependencies": {
     "deadunit":""
