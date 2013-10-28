@@ -99,22 +99,42 @@ var test = Unit.test("Testing async futures", function() {
         }).done()
         f4.throw("blah")
 
-        // uncaught
-        Future.error(function(e) {
-            t.ok(e === "blah") // uncaught exception
-            countAsserts++
-            Future.error(function(e) {
-                t.log("Wtf: "+e)
-                t.ok(false)
+        var f5 = new Future
+        this.test("done should cause an asynchronous error (by default)", function(t) {
+            this.count(1)
+            var d = require('domain').create();
+            d.on('error', function(er) {
+                t.ok(er === 'something',er)
+                f5.return()
+            })
+            d.run(function() {
+                Future(true).then(function(){
+                    console.log("moo1")
+                    throw "something"
+                }).done()
             })
         })
-        var f4 = new Future()
-        f4.done()
-        f4.throw("blah")
 
-        expectedAsserts += 6
-        futures.push(f3)
-        futures.push(f4)
+        f5.then(function() {
+            console.log("moo2")
+            // uncaught
+            Future.error(function(e) {
+                t.ok(e === "blah", e) // uncaught exception
+                countAsserts++
+                Future.error(function(e) {
+                    t.log("Wtf: "+e)
+                    t.ok(false)
+                })
+            })
+            var f4 = new Future()
+            f4.done()
+            f4.throw("blah")
+
+            expectedAsserts += 6
+            futures.push(f3)
+            futures.push(f4)
+        })
+
     })
 
     t.test("chaining", function() {
