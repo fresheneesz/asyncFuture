@@ -41,6 +41,7 @@ Why use async-future over ...
 * [fibers/future](https://github.com/laverdet/node-fibers) has a nicer interface, but only works on node.js
 * [FutureJs](https://github.com/FuturesJS/FuturesJS) doesn't have very good documentation (so its hard to really know)
 * [parallel.js](http://adambom.github.io/parallel.js/) is more complicated and doesn't help you bubble exceptions
+* [substack's node-seq](https://github.com/substack/node-seq) is also much more complicated, and doesn't have sane semantics for passing futures/promises out of functions
 
 Install
 =======
@@ -59,30 +60,40 @@ var Future = require('async-future')
 future-chains
 -------------
 
-The most important part of `async-future` is future-chains. These are chains that have try-catch-finally style semantics, but are asynchronous.
-Future-chains consist of chains of `then`, `catch`, and `finally` calls.
+The most important part of `async-future` is future-chains. 
+These are chains that have try-catch-finally style semantics, but are asynchronous.
+Future-chains consist of chains of `then`, `catch`, and `finally` calls and usually end in a `done` call. 
 All three of those methods return a `new Future` that is resolved either:
 
 * if the callback returns nothing (aka `undefined`), when the callback of that method returns. In this case, the future returns undefined as well.
 * if the callback returns a future, when the returned future resolves. In this case, the `new Future` returned by the method resolves to the same thing as the future returned from the method's callback.
 
-Exceptions bubble through chained `then`s and `finally`s, similar to how in a regular try-catch, exceptions bubble through function calls and finally blocks.
-The `done` method should be called on every future that doesn't call one of the chain methods (`then`, `catch`, or `finally), and also doesn't call `resolver`, so that thrown exceptions won't get lost.
+`f.then(<callback>)` - executes a callback when the future (`f`) or previous link in the chain is returned from. 
+Returns a future that resolves when `then` completes. 
+If the future (`f`) resolves with an exception or if an exception is thrown inside the then, the future it returns will resolve with an exceptions. 
+`<callback>` should either return nothing (aka `undefined`), or should return a future. 
+If the future `f` is returned from `<callback>`, the returned future is resolved with the result the returned future resolves to.
 
-Instance properties
+`f.catch(<callback>)` - when an exception is thrown (or an error-resolved future is returned) from a previous link in the chain,
+ the error propagates down the chain to the first catch it comes across, skipping any `then`s and running any `finally`s.
+It then executes a callback that gets that error as its only parameter. 
+Returns a future that resolves when `catch` completes.
+
+`f.finally(<callback>)` - executes a callback regardless of whether the future-chain resolved with a value or an exception. 
+The callback takes no arguments. Its return value is ignored in the case that it runs off an error-resolved future, and instead propogates the error.
+Returns a future that resolves when `finally` completes.
+
+`f.done()` - marks a future chain as done, which means that if any subsequent exceptions happen, 
+ it will be thrown asynchronously (and likely caught be a domain or seen in the console). 
+Every future or future-chain that won't have one of the chain-methods (or the `resolver` method) called on it, 
+should call `.done()`, so that thrown exceptions won't get lost.
+
+Other Instance properties
 -------------------
 
 `f.return(<value>)` - resolves a future with a return value (`undefined` if a value isn't passed)
 
 `f.throw(<exception>)` - resolves a future with an exception
-
-`f.then(<callback>)` - executes a callback when the future (`f`) is returned from. Returns a future that resolves when `then` completes. If the future (`f`) resolves with an exception or if an exception is thrown inside the then, the future it returns will resolve with an exceptions. `<callback>` should either return nothing (aka `undefined`), or should return a future. If the future `f` is returned from `<callback>`, the returned future is resolved with the result the returned future resolves to.
-
-`f.catch(<callback>)` - executes a callback when an exception is thrown from any of the previous futures (including chained `then` statements). Returns a future that resolves when `catch` completes.
-
-`f.finally(<callback>)` - executes a callback regardless of whether the future-chain resolved with a value or an exception. Also returns a future that resolves when `finally` completes.
-
-`f.done()` - marks a future chain as done, which means that if any subsequent exceptions happen, it will be thrown asynchronously (and likely caught be a domain or seen in the console). Every future-chain should end with `.done()`.
 
 `f.resolver()` - returns an errback from a future. This is useful for using functions that require an errback-style callback (a function that takes two parameters, `(error, result)`)
 
@@ -131,6 +142,7 @@ aFuture(false).then(function(result) {
 Todo
 ====
 
+* Rethink (and re-test) `finally`. Needs more edge case test (what if an error is thrown and finally is before the catch? What if its after the catch? What if an error isn't thrown?)
 * Browser support (via ) [build-modules](https://github.com/fresheneesz/buildModules)
 * Browser testing
  * Chrome [ ]
