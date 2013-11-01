@@ -14,7 +14,7 @@ function Future(value) {
         f.return(value)
         return f
 	} else {
-        this.resolved = false
+        this.isResolved = false
         this.queue = []
         if(Future.debug) {
             curId++
@@ -123,7 +123,7 @@ function setNext(that, future) {
 }
 
 function wait(that, cb) {
-    if(that.resolved) {
+    if(that.isResolved) {
         executeCallbacks(that, [cb])
     } else {
         that.queue.push(cb)
@@ -227,16 +227,16 @@ Future.prototype.resolver = function() {
     }
 }
 
-Future.prototype.isResolved = function() {
-    return this.resolved
+Future.prototype.resolved = function() {
+    return this.isResolved
 }
 
 
 function resolve(that, type, value) {
-    if(that.resolved)
+    if(that.isResolved)
         throw Error("Future resolved more than once! Resolution: "+value)
 
-    that.resolved = true
+    that.isResolved = true
     that.hasError = type === 'error'
     that.hasNext = type === 'next' && value !== undefined
 

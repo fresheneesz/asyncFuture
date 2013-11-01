@@ -109,14 +109,12 @@ var test = Unit.test("Testing async futures", function() {
             })
             d.run(function() {
                 Future(true).then(function(){
-                    console.log("moo1")
                     throw "something"
                 }).done()
             })
         })
 
         f5.then(function() {
-            console.log("moo2")
             // uncaught
             Future.error(function(e) {
                 t.ok(e === "blah", e) // uncaught exception
