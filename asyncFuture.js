@@ -116,7 +116,10 @@ Future.prototype.throw = function(e) {
 }
 
 function setNext(that, future) {
-    if(!(future instanceof Future) && future !== undefined)
+    var isFuture = function() {  // duck typing test to see if its a future
+        future.queue === undefined || future.then === undefined
+    }
+    if(future !== undefined && isFuture())
         throw Error("Value returned from then or catch *not* a Future: "+future)
 
     resolve(that, 'next', future)
