@@ -130,7 +130,7 @@ function wait(that, cb) {
     }
 }
 
-// used to determine if something is or isn't a future
+// duck typing to determine if something is or isn't a future
 function isLikeAFuture(x) {
     return x.isResolved !== undefined && x.queue !== undefined && x.then !== undefined
 }
