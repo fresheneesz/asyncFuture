@@ -116,7 +116,7 @@ Future.prototype.throw = function(e) {
 }
 
 function setNext(that, future) {
-    if(!(future instanceof Future) && future !== undefined)
+    if(future !== undefined && !isLikeAFuture(future) )
         throw Error("Value returned from then or catch *not* a Future: "+future)
 
     resolve(that, 'next', future)
@@ -128,6 +128,11 @@ function wait(that, cb) {
     } else {
         that.queue.push(cb)
     }
+}
+
+// used to determine if something is or isn't a future
+function isLikeAFuture(x) {
+    return x.isResolved !== undefined && x.queue !== undefined && x.then !== undefined
 }
 
 function waitOnResult(f, result, cb) {
@@ -252,7 +257,7 @@ function resolve(that, type, value) {
 
 function executeCallbacks(that, callbacks) {
     if(callbacks.length > 0) {
-        setTimeout(function() {   // basically process.nextTick
+        setTimeout(function() {
             callbacks.forEach(function(cb) {
                 cb.apply(that)
             })
