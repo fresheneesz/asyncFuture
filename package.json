@@ -1,7 +1,7 @@
 {"name":"async-future",
  "description": "A powerful and yet simple futures library for javascript in node.js and in-browser.",
  "keywords": ["future", "promise", "deferred", "async", "parallel", "thread", "concurrency"],
- "version":"0.1.7",
+ "version":"0.1.8",
  "main": "asyncFuture.js",
  "author": "Billy Tetrud <bitetrudpublic@gmail.com> (https://github.com/fresheneesz/)",
  "license": {

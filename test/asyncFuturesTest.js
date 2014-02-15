@@ -303,6 +303,27 @@ var test = Unit.test("Testing async futures", function() {
 
             expectedAsserts += 1
         })
+
+        this.test("exception in returned future", function(t) {
+            var f = new Future
+            futures.push(f)
+
+            var d = require('domain').create();
+            d.on('error', function(err) {
+                t.ok(err.message === "Inner Exception", err.message)
+                countAsserts++
+                f.return()
+            })
+            d.run(function() {
+                Future(true).then(function() {
+                    var f = new Future
+                    f.throw(Error("Inner Exception"))
+                    return f
+                }).done()
+            })
+
+            expectedAsserts += 1
+        })
     })
 
       /*

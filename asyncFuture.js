@@ -214,6 +214,10 @@ Future.prototype.done = function() {
     wait(this, function() {
         if(this.hasError) {
             unhandledErrorHandler(this.error)
+        } else if(this.hasNext) {
+            this.next.catch(function(e) {
+                unhandledErrorHandler(e)
+            })
         }
     })
 }
