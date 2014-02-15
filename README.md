@@ -154,6 +154,11 @@ Todo
 * timeout or cancelation (probably cancellation is more general)
 * Long stack traces (where possible)
 
+Changelog
+========
+
+* 0.1.8 - fixing bug with the `done` method when a future with an error is returned from a `then` callback
+
 How to Contribute!
 ============
 
