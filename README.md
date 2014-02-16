@@ -9,33 +9,59 @@ Why use async-future?
 * If you want exception bubbling with try-catch-finally semantics for asynchronous code
 * If you ever need to wait for two or more asynchronous calls to complete before executing some code
 
-Example
+Examples
 =======
 
-```
+Simple return with error handling
+```javascript
 var Future = require('async-future')
 
 var f = new Future
 asynchronousFunction(function(result) {
-    f.return(result)
+    if(error) f.throw(error)
+    else      f.return(result)
 })
 
 f.then(function(result) {
-    return Future.wrap(asyncFn2)() // turns an asynchronous function into a function that returns a future
+   useThe(result)
+
+}).catch(function(e) {
+   console.error("Oh no! "+error)
+
+}).done()
+```
+
+Immediates, familar try-catch-finally semantics, and Future.wrap
+```javascript
+
+var f2 = Future(45) // you can create immediately-resolved futures for convenience
+var futureFn2 = Future.wrap(asyncFn2) // turns an asynchronous function into a function that returns a future
+
+f2.then(function(result) {
+    console.log(result) // prints 45
+    return Future(true) // returning a future passes the result of the future (in this case 45) to the next `then` statment
 
 }).then(function(result2) {
-    console.log(result2)
-
-}.catch(function(error) {
-    console.error("Error: "+error)
+    console.log(result2) // prints 45
+    return futureFn2(result2) // using the wrapped function is just like using the unwrapped function, but without the callback parameter
 
 }).finally(function() {
     // this is ran regardless of whether an exception was thrown above ^
-}.done()
+
+}.done() // ensures that any exception still in the pipes here is asynchronously thrown (instead of being lost)
+
+function asyncFn2(parameter, /*more parameters if you want, */ callback) {
+    try {
+       callback(undefined, doStuff(parameter))
+    } catch(e) {
+       callback(e)
+    }
+}
 ```
 
 Why use async-future over ...
 =============================
+* Has familiar and well understood try-catch-finally semantics
 * [jQuery deferred](http://api.jquery.com/jQuery.Deferred/) doesn't bubble exceptions
 * [Q promises](https://github.com/kriskowal/q) doesn't give you the flexibility to resolve your promises, rather it splits things into promises and deffereds. This makes things both more complicated and more restrictive.
 * [fibers/future](https://github.com/laverdet/node-fibers) has a nicer interface, but only works on node.js
