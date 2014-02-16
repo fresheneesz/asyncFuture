@@ -200,18 +200,20 @@ Future.prototype.finally = function(cb) {
     var f = new Future
     wait(this, function() {
         try {
-            cb()
-
-            if(this.hasError) {
-                f.throw(this.error)
-
-            } else if(this.hasNext) {
+            if(this.hasNext) {
                 this.next.then(function(v) {
+                    cb()
                     f.return(v)
                 }).catch(function(e) {
+                    cb()
                     f.throw(e)
                 })
-            } else {
+            } else if(this.hasError) {
+                cb()
+                f.throw(this.error)
+
+            } else  {
+                cb()
                 f.return(this.result)
             }
         } catch(e) {

@@ -374,6 +374,28 @@ var test = Unit.test("Testing async futures", function() {
 
                 expectedAsserts += 1
             })
+
+            this.test("returned future not being waited on by finally", function(t) {
+                var f = new Future
+                futures.push(f)
+
+                var returnedFutureReturned = false
+                Future(true).then(function() {
+                    var f2 = new Future
+                    setTimeout(function() {
+                        f2.return()
+                        returnedFutureReturned = true
+                    },500)
+
+                    return f2
+                }).finally(function() {
+                    t.ok(returnedFutureReturned === true)
+                    countAsserts++
+                    f.return()
+                })
+
+                expectedAsserts += 1
+            })
         })
 
           /*
