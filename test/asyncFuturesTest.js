@@ -50,7 +50,7 @@ var test = Unit.test("Testing async futures", function() {
         expectedAsserts += 1
     })
 
-    var f3
+    var f3, futureDotErrorIsDoneBeingMessedWith = new Future
     t.test("exceptions", function() {
         var t = this
 
@@ -123,6 +123,8 @@ var test = Unit.test("Testing async futures", function() {
                     t.log("Wtf: "+e)
                     t.ok(false)
                 })
+
+                futureDotErrorIsDoneBeingMessedWith.return()
             })
             var f4 = new Future()
             f4.done()
@@ -286,63 +288,112 @@ var test = Unit.test("Testing async futures", function() {
         expectedAsserts += 1
     })
 
-    t.test("former bugs", function() {
-        this.test("Return result of then", function(t) {
-            var f = Future(true).then(function() {
-                return Future(true).then(function() {
-                    return Future('wutup')
+    futureDotErrorIsDoneBeingMessedWith.then(function() {
+        t.test("former bugs", function() {
+            this.test("Return result of then", function(t) {
+                var f = Future(true).then(function() {
+                    return Future(true).then(function() {
+                        return Future('wutup')
+                    })
                 })
+
+                futures.push(
+                    f.then(function(result) {
+                        t.ok(result === 'wutup', result)
+                        countAsserts++
+                    })
+                )
+
+                expectedAsserts += 1
             })
 
-            futures.push(
-                f.then(function(result) {
-                    t.ok(result === 'wutup', result)
+            this.test("exception in returned future", function(t) {
+                var f = new Future
+                futures.push(f)
+
+                var d = require('domain').create()
+                d.on('error', function(err) {
+                    t.ok(err.message === "Inner Exception1", err.message)
                     countAsserts++
+                    f.return()
                 })
-            )
+                d.run(function() {
+                    Future(true).then(function() {
+                        var f = new Future
+                        f.throw(Error("Inner Exception1"))
+                        return f
+                    }).done()
+                })
 
-            expectedAsserts += 1
-        })
-
-        this.test("exception in returned future", function(t) {
-            var f = new Future
-            futures.push(f)
-
-            var d = require('domain').create();
-            d.on('error', function(err) {
-                t.ok(err.message === "Inner Exception", err.message)
-                countAsserts++
-                f.return()
+                expectedAsserts += 1
             })
-            d.run(function() {
+
+            this.test("exception in returned future, passed through a finally", function(t) {
+                var f = new Future
+                futures.push(f)
+
+                // set error handler back to normal
+                Future.error(function(e) {
+                    setTimeout(function() {
+                        throw e
+                    },0)
+                })
+
+                var d = require('domain').create()
+                d.on('error', function(err) {
+                    t.ok(err.message === "Inner Exception2", err.message)
+                    countAsserts++
+                    f.return()
+                })
+                d.run(function() {
+                    Future(true).then(function() {
+                        var f = new Future
+                        f.throw(Error("Inner Exception2"))
+                        return f
+                    }).finally(function() {
+                        // do nothing
+                    }).done()
+                })
+
+                expectedAsserts += 1
+            })
+
+            this.test("exception in returned future, passed to a catch", function(t) {
+                var f = new Future
+                futures.push(f)
+
                 Future(true).then(function() {
                     var f = new Future
-                    f.throw(Error("Inner Exception"))
+                    f.throw(Error("Inner Exception3"))
                     return f
-                }).done()
+                }).catch(function(e) {
+                    t.ok(e.message === "Inner Exception3", e.message)
+                    countAsserts++
+                    f.return()
+                })
+
+                expectedAsserts += 1
             })
-
-            expectedAsserts += 1
         })
-    })
 
-      /*
+          /*
 
-    // longtraces
-    q.longStackSupport = true;
-    q.call(function() {
-        throw Error("test")
-    }).catch(function(e) {
-        console.log(e.stack)
-    }).fin(function() {
-        console.log("finally!")
-    })
-          */
+        // longtraces
+        q.longStackSupport = true;
+        q.call(function() {
+            throw Error("test")
+        }).catch(function(e) {
+            console.log(e.stack)
+        }).fin(function() {
+            console.log("finally!")
+        })
+              */
 
-    var x = Future.all(futures)
-    futures.push(x)
-    x.finally(function() {
-        t.equal(countAsserts, expectedAsserts)
+        var x = Future.all(futures)
+        futures.push(x)
+        x.finally(function() {
+            t.equal(countAsserts, expectedAsserts)
+        })
     })
 })
 

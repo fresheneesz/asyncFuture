@@ -157,6 +157,7 @@ Todo
 Changelog
 ========
 
+* 0.1.9 - fixing related bug with futures returned from a `then` callback, where exceptions weren't being properly propogated
 * 0.1.8 - fixing bug with the `done` method when a future with an error is returned from a `then` callback
 
 How to Contribute!

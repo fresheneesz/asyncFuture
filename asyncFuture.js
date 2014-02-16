@@ -92,7 +92,7 @@ Future.wrap = function() {
 
 // default
 var unhandledErrorHandler = function(e) {
-    setTimeout(function() { //  nextTick
+    setTimeout(function() {
         throw e
     },0)
 }
@@ -182,10 +182,15 @@ Future.prototype.catch = function(cb) {
             } catch(e) {
                 f.throw(e)
             }
-        } else if(this.hasNext)
-            setNext(f, this.next)
-        else
+        } else if(this.hasNext) {
+            this.next.then(function(v) {
+                f.return(v)
+            }).catch(function(e) {
+                setNext(f, cb(e))
+            })
+        } else {
             f.return(this.result)
+        }
     })
     return f
 }
@@ -196,9 +201,17 @@ Future.prototype.finally = function(cb) {
     wait(this, function() {
         try {
             cb()
-            if(this.hasError)
+
+            if(this.hasError) {
                 f.throw(this.error)
-            else {
+
+            } else if(this.hasNext) {
+                this.next.then(function(v) {
+                    f.return(v)
+                }).catch(function(e) {
+                    f.throw(e)
+                })
+            } else {
                 f.return(this.result)
             }
         } catch(e) {
