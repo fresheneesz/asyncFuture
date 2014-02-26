@@ -13,11 +13,11 @@
    "url": "git://github.com/fresheneesz/asyncFuture"
  },
  "dependencies":{
-    "trimArguments": "https://github.com/fresheneesz/trimArguments/archive/e69ed3ebdfe6cf055916ba6e3a1e4b28f696da6f.tar.gz",
-    "build-modules":"1.0.7"
+    "trimArguments": "https://github.com/fresheneesz/trimArguments/archive/e69ed3ebdfe6cf055916ba6e3a1e4b28f696da6f.tar.gz"
  },
  "devDependencies": {
-    "deadunit":"1.0.7"
+    "deadunit":"1.0.7",
+    "build-modules":"1.0.7"
  },
  "scripts": {
    "test": "node test/asyncFuturesTest.js"
