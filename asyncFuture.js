@@ -202,19 +202,31 @@ Future.prototype.finally = function(cb) {
         try {
             if(this.hasNext) {
                 this.next.then(function(v) {
-                    cb()
+                    var x = cb()
                     f.return(v)
+                    return x
                 }).catch(function(e) {
-                    cb()
+                    var x = cb()
                     f.throw(e)
-                })
+                    return x
+                }).done()
             } else if(this.hasError) {
-                cb()
-                f.throw(this.error)
+                Future(true).then(function() {
+                    return cb()
+                }).then(function() {
+                    f.throw(this.error)
+                }).catch(function(e) {
+                    f.throw(e)
+                }).done()
 
             } else  {
-                cb()
-                f.return(this.result)
+                Future(true).then(function() {
+                    return cb()
+                }).then(function() {
+                    f.return(this.result)
+                }).catch(function(e) {
+                    f.throw(e)
+                }).done()
             }
         } catch(e) {
             f.throw(e)
