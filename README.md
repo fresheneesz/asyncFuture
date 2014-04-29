@@ -1,7 +1,7 @@
 `async-future`
 ============
 
-A simple, powerful library for managing asynchronous control flow and saner handling of asynchronous exceptions in `node.js` and the `browser` (soon).
+A simple, powerful library for managing asynchronous control flow and saner handling of asynchronous exceptions in `node.js` and the `browser`.
 
 Why use async-future?
 =====================
@@ -14,7 +14,7 @@ Examples
 
 Simple return with error handling
 ```javascript
-var Future = require('async-future')
+var Future = require('async-future')  // node.js and webpack
 
 var f = new Future
 asynchronousFunction(function(result) {
