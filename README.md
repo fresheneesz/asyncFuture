@@ -50,7 +50,9 @@ f2.then(function(result) {
 }).finally(function() {
     // this is ran regardless of whether an exception was thrown above ^
 
-}.done() // ensures that any exception still in the pipes here is asynchronously thrown
+}).catch(function(e){  // unlike try-catch semantics, `catch` should come after `finally`
+
+}).done() // ensures that any exception still in the pipes here is asynchronously thrown
          // (instead of being lost). This is equivalent to 'detatch' in fibers/future
 
 function asyncFn2(parameter, /*more parameters if you want, */ callback) {
@@ -118,7 +120,7 @@ should call `.done()`, so that thrown exceptions won't get lost.
 .                                      | then                       | catch                         | finally
 -------------------------------------: | -------------------------- | ----------------------------- | -------------
 **parameter**                        | value of calling future    | exception from calling future  | none
-**returned future resolves to**     | *returned* future's value  | *returned* future's value     | *calling* future's value or thrown exception
+**returned future resolves to**     | *returned* future's value  | *returned* future's value     | thrown exception or *calling* future's value
 **exceptions thrown in callback**   | propogate                  | propogate                    | propogate
 
 
