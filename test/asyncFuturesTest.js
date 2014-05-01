@@ -44,7 +44,7 @@ var test = Unit.test("Testing async futures", function(t) {
 
     var f3, futureDotErrorIsDoneBeingMessedWith = new Future
     t.test("exceptions", function(t) {
-        this.count(7)
+        this.count(9)
 
         f3 = new Future()
         f3.throw(Error("test1"))
@@ -70,21 +70,36 @@ var test = Unit.test("Testing async futures", function(t) {
         }).done()
         f4.return("ok?")
 
-        var f4 = new Future()
-        f4.catch(function(e) {
+        var f4a = new Future()
+        f4a.catch(function(e) {
             throw "noooo"
         }).catch(function(e) {
             t.ok(e === 'noooo') // Throw inside catch
         }).done()
-        f4.throw("blah")
+        f4a.throw("blah")
 
-        var f4 = new Future()
-        f4.finally(function(e) {
+        var f4b = new Future()
+        f4b.finally(function(e) {
             throw "nooootAgaaaaaaiin"
         }).catch(function(e) {
             t.ok(e === 'nooootAgaaaaaaiin') // Throw inside finally
         }).done()
-        f4.throw("blah")
+        f4b.throw("blah")
+
+        var f4c = new Future()
+        var finallyComplete = false
+        f4c.finally(function(e) {
+            var x = new Future
+            setTimeout(function() {
+                finallyComplete = true
+                x.return()
+            },0)
+            return x
+        }).then(function(v){
+            t.ok('blah')
+            t.ok(finallyComplete === true)
+        }).done()
+        f4c.return("blah")
 
         var f5 = new Future
         this.test("done should cause an asynchronous error (by default)", function(t) {
@@ -254,7 +269,7 @@ var test = Unit.test("Testing async futures", function(t) {
     futures.push(futureDotErrorIsDoneBeingMessedWith.then(function() {
         var futures = []
         t.test("former bugs", function() {
-            this.count(7)
+            this.count(6)
 
             this.test("Return result of then", function(t) {
                 this.count(1)
@@ -293,7 +308,7 @@ var test = Unit.test("Testing async futures", function(t) {
             })
 
             this.test("exception in returned future, passed through a finally", function(t) {
-                this.count(1)
+                this.count(2)
 
                 var f = new Future
                 futures.push(f)
@@ -317,6 +332,7 @@ var test = Unit.test("Testing async futures", function(t) {
                         return f
                     }).finally(function() {
                         // do nothing
+                            t.ok(true)
                     }).done()
                 })
             })
@@ -336,32 +352,18 @@ var test = Unit.test("Testing async futures", function(t) {
 
                 var d = require('domain').create()
                 d.on('error', function(err) {
-                    t.ok(err === "test", err.message)
-                    f.return()
+                    t.ok(true)
                 })
                 d.run(function() {
                     Future(true).finally(function() {
                         var innerf = new Future
                         innerf.throw("test")
+
+                        f.return()
+
                         return innerf
                     }).done()
                 })
-            })
-
-            this.test("exception in future returned from a finally 2", function(t) {
-                this.count(1)
-
-                var f = new Future
-                futures.push(f)
-
-                Future(true).finally(function() {
-                    var innerf = new Future
-                    innerf.throw("test")
-                    return innerf
-                }).catch(function(e) {
-                    t.ok(e === 'test')
-                    f.return()
-                }).done()
             })
 
             this.test("exception in returned future, passed to a catch", function(t) {
