@@ -192,6 +192,7 @@ Todo
 Changelog
 ========
 
+* 0.1.18 - fixing bug in `finally` where exceptions and results weren't being correctly passed through
 * 0.1.16 - fixing behavior when exceptions happen in a finally block
 * 0.1.10 - fixing another (i think the last) related bug where finally was being called before a future returned by a previous `then` callback was resolved
 * 0.1.9 - fixing related bug with futures returned from a `then` callback, where exceptions weren't being properly propogated

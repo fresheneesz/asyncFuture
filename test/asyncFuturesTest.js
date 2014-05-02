@@ -269,7 +269,7 @@ var test = Unit.test("Testing async futures", function(t) {
     futures.push(futureDotErrorIsDoneBeingMessedWith.then(function() {
         var futures = []
         t.test("former bugs", function() {
-            this.count(6)
+            this.count(8)
 
             this.test("Return result of then", function(t) {
                 this.count(1)
@@ -401,6 +401,32 @@ var test = Unit.test("Testing async futures", function(t) {
                     t.ok(returnedFutureReturned === true)
                     f.return()
                 })
+            })
+
+            this.test('finally not passing through errors correctly', function(t) {
+                this.count(1)
+
+                var f = new Future
+                f.throw("error")
+
+                f.finally(function() {
+                    // do nothing
+                }).catch(function(e) {
+                    t.ok(e === 'error')
+                }).done()
+            })
+
+            this.test('finally not passing through return values correctly', function(t) {
+                this.count(1)
+
+                var f = new Future
+                f.return("value")
+
+                f.finally(function() {
+                    // do nothing
+                }).then(function(e) {
+                    t.ok(e === 'value')
+                }).done()
             })
         })
 

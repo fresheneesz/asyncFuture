@@ -200,6 +200,7 @@ Future.prototype.finally = function(cb) {
     var f = new Future
     wait(this, function() {
         try {
+            var that = this
             if(this.hasNext) {
                 this.next.then(function(v) {
                     var x = cb()
@@ -214,7 +215,7 @@ Future.prototype.finally = function(cb) {
                 Future(true).then(function() {
                     return cb()
                 }).then(function() {
-                    f.throw(this.error)
+                    f.throw(that.error)
                 }).catch(function(e) {
                     f.throw(e)
                 }).done()
@@ -223,7 +224,7 @@ Future.prototype.finally = function(cb) {
                 Future(true).then(function() {
                     return cb()
                 }).then(function() {
-                    f.return(this.result)
+                    f.return(that.result)
                 }).catch(function(e) {
                     f.throw(e)
                 }).done()
