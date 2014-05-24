@@ -131,7 +131,7 @@ function wait(that, cb) {
 }
 
 // duck typing to determine if something is or isn't a future
-function isLikeAFuture(x) {
+var isLikeAFuture = Future.isLikeAFuture = function(x) {
     return x.isResolved !== undefined && x.queue !== undefined && x.then !== undefined
 }
 
@@ -289,10 +289,12 @@ function resolve(that, type, value) {
 
 function executeCallbacks(that, callbacks) {
     if(callbacks.length > 0) {
-        setTimeout(function() {
+        try {
             callbacks.forEach(function(cb) {
                 cb.apply(that)
             })
-        },0)
+        } catch(e) {
+            unhandledErrorHandler(e)
+        }
     }
 }

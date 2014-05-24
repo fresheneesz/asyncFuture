@@ -142,6 +142,8 @@ Static properties
 
 `Future.wrap(<fn>)` - wraps a function that takes an errback so that it returns a future instead of calling an errback.
 
+`Future.isLikeAFuture(<fn>)` - Returns true if the object looks like a future (duck typing). You might want to use this instead of `instanceof` because its possible that you might have different versions of async-future floating around (in which case `instanceof` might not work like you expect).
+
 Example:
 
 ```javascript
@@ -178,7 +180,10 @@ aFuture(false).then(function(result) {
 Todo
 ====
 
-* Browser support (via ) [build-modules](https://github.com/fresheneesz/buildModules)
+
+* Think about how to handle domains - right now `done` throws into whatever domain the beggining of the chain was called in, instead of the context `done` was called in
+ * This might be ok since `done` is intended to be a safety net, and not generally used to catch and report errors
+* Standalone bundles (via ) [build-modules](https://github.com/fresheneesz/buildModules)
 * Browser testing
  * Chrome [ ]
  * Firefox [ ]
@@ -192,6 +197,7 @@ Todo
 Changelog
 ========
 
+* 1.0.0 - making a simple change that hugely improves performance at the cost of making it a little more impportant when exactly you call `return` or `throw` (though that also has the upside of allowing more control)
 * 0.1.18 - fixing bug in `finally` where exceptions and results weren't being correctly passed through
 * 0.1.16 - fixing behavior when exceptions happen in a finally block
 * 0.1.10 - fixing another (i think the last) related bug where finally was being called before a future returned by a previous `then` callback was resolved

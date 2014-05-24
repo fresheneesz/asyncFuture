@@ -6,7 +6,7 @@ Future.debug = true
 
 var futures = []
 var test = Unit.test("Testing async futures", function(t) {
-    this.count(13)
+    this.count(14)
 
     var f = new Future()
     this.ok(f.id !== undefined, f.id)
@@ -42,7 +42,7 @@ var test = Unit.test("Testing async futures", function(t) {
         futures.push(f2p1)
     })
 
-    var f3, futureDotErrorIsDoneBeingMessedWith = new Future
+    var f3, futureDotErrorIsDoneBeingMessedWith = new Future, exceptionTestsDone = new Future
     t.test("exceptions", function(t) {
         this.count(9)
 
@@ -101,13 +101,58 @@ var test = Unit.test("Testing async futures", function(t) {
         }).done()
         f4c.return("blah")
 
-        var f5 = new Future
-        this.test("done should cause an asynchronous error (by default)", function(t) {
+        // uncaught
+        Future.error(function(e) {
+            t.ok(e === "blah", e) // uncaught exception
+            Future.error(function(e) {
+                t.log("Wtf: "+e)
+                t.ok(false)
+            })
+
+            futureDotErrorIsDoneBeingMessedWith.return()
+        })
+        var f4 = new Future()
+        f4.done()
+        f4.throw("blah")
+
+        futures.push(f3)
+        futures.push(f4)
+
+        futureDotErrorIsDoneBeingMessedWith.then(function() {
+
+            // set error handler back to normal
+            Future.error(function(e) {
+                setTimeout(function() {
+                    throw e
+                },0)
+            })
+
+            t.test("done should cause an asynchronous error (by default)", function(t) {
+                this.count(1)
+                var d = require('domain').create();
+                d.on('error', function(er) {
+                    t.ok(er === 'something',er)
+                })
+                d.run(function() {
+                    Future(true).then(function(){
+                        throw "something"
+                    }).done()
+                })
+            })
+
+            exceptionTestsDone.return()
+        })
+
+    })
+
+    exceptionTestsDone.then(function() {
+        var futures = []
+
+        t.test("done should cause an asynchronous error (by default)", function(t) {
             this.count(1)
             var d = require('domain').create();
             d.on('error', function(er) {
                 t.ok(er === 'something',er)
-                f5.return()
             })
             d.run(function() {
                 Future(true).then(function(){
@@ -116,158 +161,129 @@ var test = Unit.test("Testing async futures", function(t) {
             })
         })
 
-        f5.then(function() {
-            // uncaught
-            Future.error(function(e) {
-                t.ok(e === "blah", e) // uncaught exception
-                Future.error(function(e) {
-                    t.log("Wtf: "+e)
-                    t.ok(false)
+        t.test("chaining", function(t) {
+            this.count(3)
+
+            var fs = [new Future, new Future, new Future]
+            fs[0].then(function(v) {
+                t.ok(v === 0)
+                fs[1].return(1)
+                return fs[1]      // resolved before
+            }).then(function(v) {
+                t.ok(v === 1) // Chained after
+                return fs[2]      // resolved after
+            }).then(function(v) {
+                t.ok(v === 2)   // Chained before
+            }).done()
+            fs[0].return(0)
+            fs[2].return(2)
+
+            futures = futures.concat(fs)
+        })
+
+
+        t.test("combining", function(t) {
+            this.count(6)
+
+            Future.all(f,f2).then(function(v){
+                t.ok(v[0] === 5) // ALL After Success
+                t.ok(v[1] === 6)
+            }).done()
+
+            Future.all(f,f2,f3).then(function(v){
+                t.ok(false) // should never happen
+            }).catch(function(e) {
+                t.ok(e.message === 'test1') // ALL After Error
+            }).done()
+
+            var f5 = new Future()
+            var f6 = new Future()
+            Future.all(f5, f6).then(function(v){
+                t.ok(v[0] === 'Ya') // ALL Before Success
+                t.ok(v[1] === 'ok')
+            }).done()
+            f5.return("Ya")
+            f6.return("ok")
+
+            var f7 = new Future()
+            var f8 = new Future()
+            Future.all(f7, f8).then(function(v){
+                t.ok(false)// Shouldn't happen
+            }).catch(function(e) {
+                t.ok(e.message === 'err') // ALL Before error
+            }).done()
+
+            f7.return("Ya")
+            f8.throw(Error("err"))
+        })
+
+        t.test("working with callbacks", function(t) {
+            this.count(6)
+
+            function asyncFn(cb) {
+                cb(undefined, "hi")
+            }
+            function asyncException(cb) {
+                cb(Error("callbackException"))
+            }
+
+            var objectWithMethods = {
+                asyncFn: asyncFn,
+                asyncException: asyncException
+            }
+
+            // resolver
+
+            var f9 = new Future
+            asyncFn(f9.resolver())
+            f9.then(function(x) {
+                t.ok(x === 'hi')
+            })
+            futures.push(f9)
+
+            var f10 = new Future
+            asyncException(f10.resolver())
+            f10.catch(function(e) {
+                t.ok(e.message === 'callbackException')
+            })
+
+            // wrap functions
+
+            var f11 = Future.wrap(asyncFn)()
+            f11.then(function(x) {
+                t.ok(x === 'hi')
+            })
+            futures.push(f11)
+
+            var f12 = Future.wrap(asyncException)()
+            f12.catch(function(e) {
+                t.ok(e.message === 'callbackException')
+            })
+
+            // wrap methods
+
+            var f13 = Future.wrap(objectWithMethods, 'asyncFn')()
+            f13.then(function(x) {
+                t.ok(x === 'hi')
+            })
+
+            var f14 = Future.wrap(objectWithMethods, 'asyncException')()
+            f14.catch(function(e) {
+                t.ok(e.message === 'callbackException')
+            })
+        })
+
+        t.test("immediate futures", function(t) {
+            this.count(1)
+
+            futures.push(
+                Future(true).then(function(v) {
+                    t.eq(v,true)
                 })
-
-                futureDotErrorIsDoneBeingMessedWith.return()
-            })
-            var f4 = new Future()
-            f4.done()
-            f4.throw("blah")
-
-            futures.push(f3)
-            futures.push(f4)
+            )
         })
 
-    })
 
-    t.test("chaining", function(t) {
-        this.count(3)
-
-        var fs = [new Future, new Future, new Future]
-        fs[0].then(function(v) {
-            t.ok(v === 0)
-            fs[1].return(1)
-            return fs[1]      // resolved before
-        }).then(function(v) {
-            t.ok(v === 1) // Chained after
-            return fs[2]      // resolved after
-        }).then(function(v) {
-            t.ok(v === 2)   // Chained before
-        }).done()
-        fs[0].return(0)
-        fs[2].return(2)
-
-        futures = futures.concat(fs)
-    })
-
-
-    t.test("combining", function(t) {
-        this.count(6)
-
-        Future.all(f,f2).then(function(v){
-            t.ok(v[0] === 5) // ALL After Success
-            t.ok(v[1] === 6)
-        }).done()
-
-        Future.all(f,f2,f3).then(function(v){
-            t.ok(false) // should never happen
-        }).catch(function(e) {
-            t.ok(e.message === 'test1') // ALL After Error
-        }).done()
-
-        var f5 = new Future()
-        var f6 = new Future()
-        Future.all(f5, f6).then(function(v){
-            t.ok(v[0] === 'Ya') // ALL Before Success
-            t.ok(v[1] === 'ok')
-        }).done()
-        f5.return("Ya")
-        f6.return("ok")
-
-        var f7 = new Future()
-        var f8 = new Future()
-        Future.all(f7, f8).then(function(v){
-            t.ok(false)// Shouldn't happen
-        }).catch(function(e) {
-            t.ok(e.message === 'err') // ALL Before error
-        })
-        f7.return("Ya")
-        f8.throw(Error("err"))
-
-        futures.push(f6)
-        futures.push(f7)
-        futures.push(f8)
-    })
-
-    t.test("working with callbacks", function(t) {
-        this.count(6)
-
-        function asyncFn(cb) {
-            cb(undefined, "hi")
-        }
-        function asyncException(cb) {
-            cb(Error("callbackException"))
-        }
-        
-        var objectWithMethods = {
-			asyncFn: asyncFn,
-			asyncException: asyncException
-		}
-
-        // resolver
-
-        var f9 = new Future
-        asyncFn(f9.resolver())
-        f9.then(function(x) {
-            t.ok(x === 'hi')
-        })
-        futures.push(f9)
-
-        var f10 = new Future
-        asyncException(f10.resolver())
-        f10.catch(function(e) {
-            t.ok(e.message === 'callbackException')
-        })
-        futures.push(f10)
-
-        // wrap functions
-
-        var f11 = Future.wrap(asyncFn)()
-        f11.then(function(x) {
-            t.ok(x === 'hi')
-        })
-        futures.push(f11)
-
-        var f12 = Future.wrap(asyncException)()
-        f12.catch(function(e) {
-            t.ok(e.message === 'callbackException')
-        })
-        futures.push(f12)
-                
-		// wrap methods
-
-        var f13 = Future.wrap(objectWithMethods, 'asyncFn')()
-        f13.then(function(x) {
-            t.ok(x === 'hi')
-        })
-        futures.push(f13)
-
-        var f14 = Future.wrap(objectWithMethods, 'asyncException')()
-        f14.catch(function(e) {
-            t.ok(e.message === 'callbackException')
-        })
-        futures.push(f14)
-    })
-
-    t.test("immediate futures", function(t) {
-        this.count(1)
-
-        futures.push(
-            Future(true).then(function(v) {
-                t.equal(v,true)
-            })
-        )
-    })
-
-    futures.push(futureDotErrorIsDoneBeingMessedWith.then(function() {
-        var futures = []
         t.test("former bugs", function() {
             this.count(8)
 
@@ -307,18 +323,12 @@ var test = Unit.test("Testing async futures", function(t) {
                 })
             })
 
+
             this.test("exception in returned future, passed through a finally", function(t) {
                 this.count(2)
 
                 var f = new Future
                 futures.push(f)
-
-                // set error handler back to normal
-                Future.error(function(e) {
-                    setTimeout(function() {
-                        throw e
-                    },0)
-                })
 
                 var d = require('domain').create()
                 d.on('error', function(err) {
@@ -342,13 +352,6 @@ var test = Unit.test("Testing async futures", function(t) {
 
                 var f = new Future
                 futures.push(f)
-
-                // set error handler back to normal
-                Future.error(function(e) {
-                    setTimeout(function() {
-                        throw e
-                    },0)
-                })
 
                 var d = require('domain').create()
                 d.on('error', function(err) {
@@ -392,8 +395,8 @@ var test = Unit.test("Testing async futures", function(t) {
                 Future(true).then(function() {
                     var f2 = new Future
                     setTimeout(function() {
-                        f2.return()
                         returnedFutureReturned = true
+                        f2.return()
                     },500)
 
                     return f2
@@ -442,13 +445,7 @@ var test = Unit.test("Testing async futures", function(t) {
             console.log("finally!")
         })
               */
-
-        return Future.all(futures)
-    }))
-})
-
-Future.all(futures).finally(function() {
-    test.writeConsole()
-})
+    }).done()
+}).writeConsole()
 
 
