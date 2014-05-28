@@ -181,22 +181,16 @@ Todo
 ====
 
 
+* Long stack traces (where possible)
 * Think about how to handle domains - right now `done` throws into whatever domain the beggining of the chain was called in, instead of the context `done` was called in
  * This might be ok since `done` is intended to be a safety net, and not generally used to catch and report errors
-* Standalone bundles (via ) [build-modules](https://github.com/fresheneesz/buildModules)
-* Browser testing
- * Chrome [ ]
- * Firefox [ ]
- * IE10 [ ]
- * IE9 [ ]
- * IE8 [ ]
- * Opera [ ]
+* Standalone bundle (via ) [build-modules](https://github.com/fresheneesz/buildModules)
 * timeout or cancelation (probably cancellation is more general)
-* Long stack traces (where possible)
 
 Changelog
 ========
 
+* 1.0.1 - fixing obscure bug in `catch`
 * 1.0.0 - making a simple change that hugely improves performance at the cost of making it a little more impportant when exactly you call `return` or `throw` (though that also has the upside of allowing more control)
 * 0.1.18 - fixing bug in `finally` where exceptions and results weren't being correctly passed through
 * 0.1.16 - fixing behavior when exceptions happen in a finally block

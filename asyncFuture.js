@@ -186,7 +186,11 @@ Future.prototype.catch = function(cb) {
             this.next.then(function(v) {
                 f.return(v)
             }).catch(function(e) {
-                setNext(f, cb(e))
+                try {
+                    setNext(f, cb(e))
+                } catch(e) {
+                    f.throw(e)
+                }
             })
         } else {
             f.return(this.result)

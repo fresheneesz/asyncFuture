@@ -285,7 +285,7 @@ var test = Unit.test("Testing async futures", function(t) {
 
 
         t.test("former bugs", function() {
-            this.count(8)
+            this.count(9)
 
             this.test("Return result of then", function(t) {
                 this.count(1)
@@ -430,6 +430,20 @@ var test = Unit.test("Testing async futures", function(t) {
                 }).then(function(e) {
                     t.ok(e === 'value')
                 }).done()
+            })
+
+            this.test("second catch not catching errors in error handler", function(t) {
+                this.count(1)
+
+                Future(undefined).then(function() {
+                    var f = new Future
+                    f.throw("crap")
+                    return f
+                }).catch(function(e) {
+                    throw e
+                }).catch(function(e) {
+                        t.eq(e, 'crap')
+                })
             })
         })
 
