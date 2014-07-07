@@ -16,11 +16,21 @@ setTimeout(function() {
     build(buildDirectory, 'asyncFuture', copywrite, __dirname + '/asyncFuture.js', undefined, function(e) {
         if(e !== undefined) {
             console.error(e.stack)
-            process.exit(1)
         } else {
-            console.log('done')
+            console.log('done building main bundle')
         }
     })
+    
+    // test bundle
+    
+    build(__dirname+'/test', 'asyncFuture.test.browser', '', __dirname + '/test/asyncFuture.test.browser.js', undefined, function(e) {
+        if(e !== undefined) {
+            console.error(e.stack)
+        } else {
+            console.log('done building test bundle')
+        }
+    })
+    
 }, 3000)
 
 

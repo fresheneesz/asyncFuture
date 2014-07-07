@@ -1,12 +1,11 @@
-"use strict";
 
-var Unit = require('deadunit')
 var Future = require('../asyncFuture')
 Future.debug = true
 
-var futures = []
-var test = Unit.test("Testing async futures", function(t) {
+module.exports = function(t) {
     this.count(14)
+
+	var futures = []
 
     var f = new Future()
     this.ok(f.id !== undefined, f.id)
@@ -285,7 +284,7 @@ var test = Unit.test("Testing async futures", function(t) {
 
 
         t.test("former bugs", function() {
-            this.count(9)
+            this.count(10)
 
             this.test("Return result of then", function(t) {
                 this.count(1)
@@ -445,6 +444,27 @@ var test = Unit.test("Testing async futures", function(t) {
                         t.eq(e, 'crap')
                 })
             })
+
+            this.test('too much recursion suceptibility', function(t) {
+                this.count(2)
+                try {
+                    var f = new Future, cur = f
+                    for(var n=0; n<5000; n++) {
+                        cur = cur.then(function(x) {
+                            return Future(x)
+                        })
+                    }
+                    cur.then(function(result) {
+                        t.ok(true)
+                    }).done()
+
+                    f.return('done')
+                    this.ok(true)
+
+                } catch(e) {
+                    this.ok(false, e)
+                }
+            })
         })
 
           /*
@@ -460,6 +480,4 @@ var test = Unit.test("Testing async futures", function(t) {
         })
               */
     }).done()
-}).writeConsole()
-
-
+}

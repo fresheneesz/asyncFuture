@@ -190,6 +190,7 @@ Todo
 Changelog
 ========
 
+* 1.0.2 - adding code to prevent "too much recursion" RangeErrors from being caused by code with a ridiculous number of chained `then`s using a setTimeout every 400th chain
 * 1.0.1 - fixing obscure bug in `catch`
 * 1.0.0 - making a simple change that hugely improves performance at the cost of making it a little more impportant when exactly you call `return` or `throw` (though that also has the upside of allowing more control)
 * 0.1.18 - fixing bug in `finally` where exceptions and results weren't being correctly passed through

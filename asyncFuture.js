@@ -16,6 +16,7 @@ function Future(value) {
 	} else {
         this.isResolved = false
         this.queue = []
+        this.n = 0 // future depth (for preventing "too much recursion" RangeErrors)
         if(Future.debug) {
             curId++
             this.id = curId
@@ -156,6 +157,7 @@ function waitOnResult(f, result, cb) {
 // cb can return a Future, in which case the result of that Future is passed to next-in-chain
 Future.prototype.then = function(cb) {
     var f = new Future
+    f.n = this.n + 1
     wait(this, function() {
         if(this.hasError)
             f.throw(this.error)
@@ -175,6 +177,7 @@ Future.prototype.then = function(cb) {
 // cb can return a Future, in which case the result of that Future is passed to next-in-chain
 Future.prototype.catch = function(cb) {
     var f = new Future
+    f.n = this.n + 1
     wait(this, function() {
         if(this.hasError) {
             try {
@@ -202,6 +205,7 @@ Future.prototype.catch = function(cb) {
 // callback's return value is ignored, but thrown exceptions propogate normally
 Future.prototype.finally = function(cb) {
     var f = new Future
+    f.n = this.n + 1
     wait(this, function() {
         try {
             var that = this
@@ -288,7 +292,13 @@ function resolve(that, type, value) {
     else
         that.result = value
 
-    executeCallbacks(that, that.queue)
+    if(that.n % 400 !== 0) { // 400 is a pretty arbitrary number - it should be set significantly lower than common maximum stack depths, and high enough to make sure performance isn't significantly affected
+        executeCallbacks(that, that.queue)
+    } else {
+        setTimeout(function() { // this prevents too much recursion errors
+            executeCallbacks(that, that.queue)
+        }, 0)
+    }
 }
 
 function executeCallbacks(that, callbacks) {

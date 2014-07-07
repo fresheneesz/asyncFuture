@@ -1,7 +1,7 @@
-!function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.asyncFuture=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+!function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.asyncFuture=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 /* Copyright (c) 2013 Billy Tetrud - Free to use for any purpose: MIT License*/
 
-var trimArgs = require("trimArguments")
+var trimArgs = _dereq_("trimArguments")
 
 
 module.exports = Future
@@ -17,6 +17,7 @@ function Future(value) {
 	} else {
         this.isResolved = false
         this.queue = []
+        this.n = 0 // future depth (for preventing "too much recursion" RangeErrors)
         if(Future.debug) {
             curId++
             this.id = curId
@@ -132,7 +133,7 @@ function wait(that, cb) {
 }
 
 // duck typing to determine if something is or isn't a future
-function isLikeAFuture(x) {
+var isLikeAFuture = Future.isLikeAFuture = function(x) {
     return x.isResolved !== undefined && x.queue !== undefined && x.then !== undefined
 }
 
@@ -157,6 +158,7 @@ function waitOnResult(f, result, cb) {
 // cb can return a Future, in which case the result of that Future is passed to next-in-chain
 Future.prototype.then = function(cb) {
     var f = new Future
+    f.n = this.n + 1
     wait(this, function() {
         if(this.hasError)
             f.throw(this.error)
@@ -176,6 +178,7 @@ Future.prototype.then = function(cb) {
 // cb can return a Future, in which case the result of that Future is passed to next-in-chain
 Future.prototype.catch = function(cb) {
     var f = new Future
+    f.n = this.n + 1
     wait(this, function() {
         if(this.hasError) {
             try {
@@ -187,7 +190,11 @@ Future.prototype.catch = function(cb) {
             this.next.then(function(v) {
                 f.return(v)
             }).catch(function(e) {
-                setNext(f, cb(e))
+                try {
+                    setNext(f, cb(e))
+                } catch(e) {
+                    f.throw(e)
+                }
             })
         } else {
             f.return(this.result)
@@ -199,23 +206,37 @@ Future.prototype.catch = function(cb) {
 // callback's return value is ignored, but thrown exceptions propogate normally
 Future.prototype.finally = function(cb) {
     var f = new Future
+    f.n = this.n + 1
     wait(this, function() {
         try {
+            var that = this
             if(this.hasNext) {
                 this.next.then(function(v) {
-                    cb()
+                    var x = cb()
                     f.return(v)
+                    return x
                 }).catch(function(e) {
-                    cb()
+                    var x = cb()
                     f.throw(e)
-                })
+                    return x
+                }).done()
             } else if(this.hasError) {
-                cb()
-                f.throw(this.error)
+                Future(true).then(function() {
+                    return cb()
+                }).then(function() {
+                    f.throw(that.error)
+                }).catch(function(e) {
+                    f.throw(e)
+                }).done()
 
             } else  {
-                cb()
-                f.return(this.result)
+                Future(true).then(function() {
+                    return cb()
+                }).then(function() {
+                    f.return(that.result)
+                }).catch(function(e) {
+                    f.throw(e)
+                }).done()
             }
         } catch(e) {
             f.throw(e)
@@ -272,20 +293,27 @@ function resolve(that, type, value) {
     else
         that.result = value
 
-    executeCallbacks(that, that.queue)
+    if(that.n % 500 !== 0) {
+        executeCallbacks(that, that.queue)
+    } else {
+        setTimeout(function() { // this prevents too much recursion errors
+            executeCallbacks(that, that.queue)
+        }, 0)
+    }
 }
 
 function executeCallbacks(that, callbacks) {
     if(callbacks.length > 0) {
-        setTimeout(function() {
+        try {
             callbacks.forEach(function(cb) {
                 cb.apply(that)
             })
-        },0)
+        } catch(e) {
+            unhandledErrorHandler(e)
+        }
     }
 }
-
-},{"trimArguments":2}],2:[function(require,module,exports){
+},{"trimArguments":2}],2:[function(_dereq_,module,exports){
 // resolves varargs variable into more usable form
 // args - should be a function arguments variable
 // returns a javascript Array object of arguments that doesn't count trailing undefined values in the length
