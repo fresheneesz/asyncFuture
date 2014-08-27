@@ -1,22 +1,22 @@
 
 var Future = require('../asyncFuture')
-Future.debug = true
+
 
 module.exports = function(t) {
-    this.count(14)
+
+
+    //*
+    this.count(12)
 
 	var futures = []
 
     var f = new Future()
-    this.ok(f.id !== undefined, f.id)
     f.return(5)
     f.then(function(v) {
         t.ok(v===5)  // return before
     }).done()
 
     var f2 = new Future()
-    this.ok(f2.id !== undefined, f2.id)
-    this.ok(f.id !== f2.id)
     f2.then(function(v) {
         t.ok(v===6)  // return after
     }).done()
@@ -24,10 +24,6 @@ module.exports = function(t) {
 
     futures.push(f)
     futures.push(f2)
-
-    Future.debug = false
-    var nondebugTest = new Future
-    this.ok(nondebugTest.nondebugTest === undefined)
 
     t.test("immediate future", function(t) {
         this.count(1)
@@ -282,6 +278,49 @@ module.exports = function(t) {
             )
         })
 
+        t.test('debug ids', function() {
+            Future.debug = true
+
+            var f = new Future()
+            this.ok(f.id !== undefined, f.id)
+
+            var f2 = new Future()
+            this.ok(f2.id !== undefined, f2.id)
+            this.ok(f.id !== f2.id)
+
+            Future.debug = false
+        })
+
+        t.test('long traces', function(t) {
+            this.count(2)
+
+            var lineNumber = '311'
+
+            Future.debug=false // make sure long traces don't happen when debug is false
+            test(function(t, e) {
+                t.ok(e.stack.toString().indexOf(lineNumber) === -1)
+            })
+
+            Future.debug = true
+            test(function(t, e) {
+                t.ok(e.stack.toString().indexOf(lineNumber) !== -1)
+            })
+
+            function test(assertions) {
+                var f = new Future
+                f.then(function() {
+                    throw new Error("wuuuut")
+                }).catch(function(e) {
+                    t.log(e.stack)
+                    assertions(t, e)
+                })
+
+                setTimeout(function() {
+                    f.return(1)
+                })
+            }
+
+        })
 
         t.test("former bugs", function() {
             this.count(10)
@@ -466,18 +505,7 @@ module.exports = function(t) {
                 }
             })
         })
-
-          /*
-
-        // longtraces
-        q.longStackSupport = true;
-        q.call(function() {
-            throw Error("test")
-        }).catch(function(e) {
-            console.log(e.stack)
-        }).fin(function() {
-            console.log("finally!")
-        })
-              */
     }).done()
+
+    //*/
 }

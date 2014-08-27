@@ -174,22 +174,21 @@ aFuture(false).then(function(result) {
 
 `Future.error(<handler>)` - sets up a function that is called when an unhandled error happens. `<handler>` gets one parameter, the unhandled exception. Unhandled errors happen when `done` is called and an exception is thrown from the future.
 
-`Future.debug` - if true, gives each future a unique id (default is `false`)
+`Future.debug` - if true, gives each future a unique id (default is `false`) and enables long-stack-traces in exceptions (where the stack trace for the context in which `then`, `catch`, or `finally` is called in is printed below the original exception's stack trace).
 
 
 Todo
 ====
 
-
-* Long stack traces (where possible)
-* Think about how to handle domains - right now `done` throws into whatever domain the beggining of the chain was called in, instead of the context `done` was called in
+* Think about how to handle domains - right now `done` throws into whatever domain the beginning of the chain was called in, instead of the context `done` was called in
  * This might be ok since `done` is intended to be a safety net, and not generally used to catch and report errors
 * Standalone bundle (via ) [build-modules](https://github.com/fresheneesz/buildModules)
-* timeout or cancelation (probably cancellation is more general)
+* timeout or cancellation (probably cancellation is more general)
 
 Changelog
 ========
 
+* 1.0.3 - adding long traces (when Future.debug is set to true)
 * 1.0.2 - adding code to prevent "too much recursion" RangeErrors from being caused by code with a ridiculous number of chained `then`s using a setTimeout every 400th chain
 * 1.0.1 - fixing obscure bug in `catch`
 * 1.0.0 - making a simple change that hugely improves performance at the cost of making it a little more impportant when exactly you call `return` or `throw` (though that also has the upside of allowing more control)
