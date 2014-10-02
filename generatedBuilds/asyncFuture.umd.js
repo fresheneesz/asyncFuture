@@ -17,7 +17,7 @@ function Future(value) {
 	} else {
         this.isResolved = false
         this.queue = []
-        this.n = 0 // future depth (for preventing "too much recursion" RangeErrors)
+        this.n = 1 // future depth (for preventing "too much recursion" RangeErrors)
         if(Future.debug) {
             curId++
             this.id = curId
@@ -114,13 +114,13 @@ Future.prototype.return = function(v) {
     resolve(this, 'return', v)
 }
 Future.prototype.throw = function(e) {
+    if(this.location !== undefined) {
+        e.stack += '\n    ---------------------------\n'+this.location.stack.split('\n').slice(4).join('\n')
+    }
     resolve(this, 'error', e)
 }
 
 function setNext(that, future) {
-    if(future !== undefined && !isLikeAFuture(future) )
-        throw Error("Value returned from then or catch *not* a Future: "+future)
-
     resolve(that, 'next', future)
 }
 
@@ -145,7 +145,7 @@ function waitOnResult(f, result, cb) {
             waitOnResult(f, this.next, cb)
         } else {
             try {
-                setNext(f, cb(this.result))
+                setNext(f, executeCallback(cb,this.result))
             } catch(e) {
                 f.throw(e)
             }
@@ -157,8 +157,7 @@ function waitOnResult(f, result, cb) {
 // cb takes one parameter - the value returned
 // cb can return a Future, in which case the result of that Future is passed to next-in-chain
 Future.prototype.then = function(cb) {
-    var f = new Future
-    f.n = this.n + 1
+    var f = createChainFuture(this)
     wait(this, function() {
         if(this.hasError)
             f.throw(this.error)
@@ -166,7 +165,7 @@ Future.prototype.then = function(cb) {
             waitOnResult(f, this.next, cb)
         else {
             try {
-                setNext(f, cb(this.result))
+                setNext(f, executeCallback(cb,this.result))
             } catch(e) {
                 f.throw(e)
             }
@@ -177,12 +176,11 @@ Future.prototype.then = function(cb) {
 // cb takes one parameter - the error caught
 // cb can return a Future, in which case the result of that Future is passed to next-in-chain
 Future.prototype.catch = function(cb) {
-    var f = new Future
-    f.n = this.n + 1
+    var f = createChainFuture(this)
     wait(this, function() {
         if(this.hasError) {
             try {
-                setNext(f, cb(this.error))
+                setNext(f, executeCallback(cb,this.error))
             } catch(e) {
                 f.throw(e)
             }
@@ -191,7 +189,7 @@ Future.prototype.catch = function(cb) {
                 f.return(v)
             }).catch(function(e) {
                 try {
-                    setNext(f, cb(e))
+                    setNext(f, executeCallback(cb,e))
                 } catch(e) {
                     f.throw(e)
                 }
@@ -205,24 +203,23 @@ Future.prototype.catch = function(cb) {
 // cb takes no parameters
 // callback's return value is ignored, but thrown exceptions propogate normally
 Future.prototype.finally = function(cb) {
-    var f = new Future
-    f.n = this.n + 1
+    var f = createChainFuture(this)
     wait(this, function() {
         try {
             var that = this
             if(this.hasNext) {
                 this.next.then(function(v) {
-                    var x = cb()
+                    var x = executeCallback(cb)
                     f.return(v)
                     return x
                 }).catch(function(e) {
-                    var x = cb()
+                    var x = executeCallback(cb)
                     f.throw(e)
                     return x
                 }).done()
             } else if(this.hasError) {
                 Future(true).then(function() {
-                    return cb()
+                    return executeCallback(cb)
                 }).then(function() {
                     f.throw(that.error)
                 }).catch(function(e) {
@@ -231,7 +228,7 @@ Future.prototype.finally = function(cb) {
 
             } else  {
                 Future(true).then(function() {
-                    return cb()
+                    return executeCallback(cb)
                 }).then(function() {
                     f.return(that.result)
                 }).catch(function(e) {
@@ -242,6 +239,16 @@ Future.prototype.finally = function(cb) {
             f.throw(e)
         }
     })
+    return f
+}
+
+// a future created for the chain functions (then, catch, and finally)
+function createChainFuture(that) {
+    var f = new Future
+    f.n = that.n + 1
+    if(Future.debug) {
+        f.location = createException()  // used for long traces
+    }
     return f
 }
 
@@ -293,7 +300,10 @@ function resolve(that, type, value) {
     else
         that.result = value
 
-    if(that.n % 500 !== 0) {
+    // 100 is a pretty arbitrary number - it should be set significantly lower than common maximum stack depths, and high enough to make sure performance isn't significantly affected
+    // in using this for deadunit, firefox was getting a recursion error at 150, but not at 100. This doesn't mean that it can't happen at 100 too, but it'll certainly make it less likely
+    // if you're getting recursion errors even with this mechanism, you probably need to figure that out in your own code
+    if(that.n % 100 !== 0) {
         executeCallbacks(that, that.queue)
     } else {
         setTimeout(function() { // this prevents too much recursion errors
@@ -311,6 +321,23 @@ function executeCallbacks(that, callbacks) {
         } catch(e) {
             unhandledErrorHandler(e)
         }
+    }
+}
+
+// executes a callback and ensures that it returns a future
+function executeCallback(cb, arg) {
+    var r = cb(arg)
+    if(r !== undefined && !isLikeAFuture(r) )
+        throw Error("Value returned from then or catch ("+r+") is *not* a Future. Callback: "+cb.toString())
+
+    return r
+}
+
+function createException() {
+    try {
+        throw new Error()
+    } catch(e) {
+        return e
     }
 }
 },{"trimArguments":2}],2:[function(_dereq_,module,exports){

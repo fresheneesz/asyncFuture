@@ -188,6 +188,10 @@ Todo
 Changelog
 ========
 
+* 1.0.4
+    * changing a future's initial 'n' so that a setTimeout doesn't happen for the first few hundred chains
+    * adding some info to "callback returned an object that isn't a future" error
+    * fixing browser tests (they need testServer.js to be running)
 * 1.0.3 - adding long traces (when Future.debug is set to true)
 * 1.0.2 - adding code to prevent "too much recursion" RangeErrors from being caused by code with a ridiculous number of chained `then`s using a setTimeout every 400th chain
 * 1.0.1 - fixing obscure bug in `catch`

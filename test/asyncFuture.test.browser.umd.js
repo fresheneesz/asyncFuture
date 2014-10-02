@@ -17,7 +17,7 @@ function Future(value) {
 	} else {
         this.isResolved = false
         this.queue = []
-        this.n = 0 // future depth (for preventing "too much recursion" RangeErrors)
+        this.n = 1 // future depth (for preventing "too much recursion" RangeErrors)
         if(Future.debug) {
             curId++
             this.id = curId
@@ -114,13 +114,13 @@ Future.prototype.return = function(v) {
     resolve(this, 'return', v)
 }
 Future.prototype.throw = function(e) {
+    if(this.location !== undefined) {
+        e.stack += '\n    ---------------------------\n'+this.location.stack.split('\n').slice(4).join('\n')
+    }
     resolve(this, 'error', e)
 }
 
 function setNext(that, future) {
-    if(future !== undefined && !isLikeAFuture(future) )
-        throw Error("Value returned from then or catch *not* a Future: "+future)
-
     resolve(that, 'next', future)
 }
 
@@ -145,7 +145,7 @@ function waitOnResult(f, result, cb) {
             waitOnResult(f, this.next, cb)
         } else {
             try {
-                setNext(f, cb(this.result))
+                setNext(f, executeCallback(cb,this.result))
             } catch(e) {
                 f.throw(e)
             }
@@ -157,8 +157,7 @@ function waitOnResult(f, result, cb) {
 // cb takes one parameter - the value returned
 // cb can return a Future, in which case the result of that Future is passed to next-in-chain
 Future.prototype.then = function(cb) {
-    var f = new Future
-    f.n = this.n + 1
+    var f = createChainFuture(this)
     wait(this, function() {
         if(this.hasError)
             f.throw(this.error)
@@ -166,7 +165,7 @@ Future.prototype.then = function(cb) {
             waitOnResult(f, this.next, cb)
         else {
             try {
-                setNext(f, cb(this.result))
+                setNext(f, executeCallback(cb,this.result))
             } catch(e) {
                 f.throw(e)
             }
@@ -177,12 +176,11 @@ Future.prototype.then = function(cb) {
 // cb takes one parameter - the error caught
 // cb can return a Future, in which case the result of that Future is passed to next-in-chain
 Future.prototype.catch = function(cb) {
-    var f = new Future
-    f.n = this.n + 1
+    var f = createChainFuture(this)
     wait(this, function() {
         if(this.hasError) {
             try {
-                setNext(f, cb(this.error))
+                setNext(f, executeCallback(cb,this.error))
             } catch(e) {
                 f.throw(e)
             }
@@ -191,7 +189,7 @@ Future.prototype.catch = function(cb) {
                 f.return(v)
             }).catch(function(e) {
                 try {
-                    setNext(f, cb(e))
+                    setNext(f, executeCallback(cb,e))
                 } catch(e) {
                     f.throw(e)
                 }
@@ -205,24 +203,23 @@ Future.prototype.catch = function(cb) {
 // cb takes no parameters
 // callback's return value is ignored, but thrown exceptions propogate normally
 Future.prototype.finally = function(cb) {
-    var f = new Future
-    f.n = this.n + 1
+    var f = createChainFuture(this)
     wait(this, function() {
         try {
             var that = this
             if(this.hasNext) {
                 this.next.then(function(v) {
-                    var x = cb()
+                    var x = executeCallback(cb)
                     f.return(v)
                     return x
                 }).catch(function(e) {
-                    var x = cb()
+                    var x = executeCallback(cb)
                     f.throw(e)
                     return x
                 }).done()
             } else if(this.hasError) {
                 Future(true).then(function() {
-                    return cb()
+                    return executeCallback(cb)
                 }).then(function() {
                     f.throw(that.error)
                 }).catch(function(e) {
@@ -231,7 +228,7 @@ Future.prototype.finally = function(cb) {
 
             } else  {
                 Future(true).then(function() {
-                    return cb()
+                    return executeCallback(cb)
                 }).then(function() {
                     f.return(that.result)
                 }).catch(function(e) {
@@ -242,6 +239,16 @@ Future.prototype.finally = function(cb) {
             f.throw(e)
         }
     })
+    return f
+}
+
+// a future created for the chain functions (then, catch, and finally)
+function createChainFuture(that) {
+    var f = new Future
+    f.n = that.n + 1
+    if(Future.debug) {
+        f.location = createException()  // used for long traces
+    }
     return f
 }
 
@@ -293,7 +300,10 @@ function resolve(that, type, value) {
     else
         that.result = value
 
-    if(that.n % 500 !== 0) {
+    // 100 is a pretty arbitrary number - it should be set significantly lower than common maximum stack depths, and high enough to make sure performance isn't significantly affected
+    // in using this for deadunit, firefox was getting a recursion error at 150, but not at 100. This doesn't mean that it can't happen at 100 too, but it'll certainly make it less likely
+    // if you're getting recursion errors even with this mechanism, you probably need to figure that out in your own code
+    if(that.n % 100 !== 0) {
         executeCallbacks(that, that.queue)
     } else {
         setTimeout(function() { // this prevents too much recursion errors
@@ -313,336 +323,24 @@ function executeCallbacks(that, callbacks) {
         }
     }
 }
-},{"trimArguments":45}],2:[function(_dereq_,module,exports){
-/*global define:false require:false */
-module.exports = (function(){
-  // Import Events
-  var events = _dereq_('events');
 
-  // Export Domain
-  var domain = {};
-  domain.create = function(){
-    var d = new events.EventEmitter();
-    d.run = function(fn){
-      try {
-        fn();
-      }
-      catch (err) {
-        this.emit('error', err);
-      }
-      return this;
-    };
-    d.dispose = function(){
-      this.removeAllListeners();
-      return this;
-    };
-    return d;
-  };
-  return domain;
-}).call(this);
-},{"events":3}],3:[function(_dereq_,module,exports){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+// executes a callback and ensures that it returns a future
+function executeCallback(cb, arg) {
+    var r = cb(arg)
+    if(r !== undefined && !isLikeAFuture(r) )
+        throw Error("Value returned from then or catch ("+r+") is *not* a Future. Callback: "+cb.toString())
 
-function EventEmitter() {
-  this._events = this._events || {};
-  this._maxListeners = this._maxListeners || undefined;
-}
-module.exports = EventEmitter;
-
-// Backwards-compat with node 0.10.x
-EventEmitter.EventEmitter = EventEmitter;
-
-EventEmitter.prototype._events = undefined;
-EventEmitter.prototype._maxListeners = undefined;
-
-// By default EventEmitters will print a warning if more than 10 listeners are
-// added to it. This is a useful default which helps finding memory leaks.
-EventEmitter.defaultMaxListeners = 10;
-
-// Obviously not all Emitters should be limited to 10. This function allows
-// that to be increased. Set to zero for unlimited.
-EventEmitter.prototype.setMaxListeners = function(n) {
-  if (!isNumber(n) || n < 0 || isNaN(n))
-    throw TypeError('n must be a positive number');
-  this._maxListeners = n;
-  return this;
-};
-
-EventEmitter.prototype.emit = function(type) {
-  var er, handler, len, args, i, listeners;
-
-  if (!this._events)
-    this._events = {};
-
-  // If there is no 'error' event listener then throw.
-  if (type === 'error') {
-    if (!this._events.error ||
-        (isObject(this._events.error) && !this._events.error.length)) {
-      er = arguments[1];
-      if (er instanceof Error) {
-        throw er; // Unhandled 'error' event
-      } else {
-        throw TypeError('Uncaught, unspecified "error" event.');
-      }
-      return false;
-    }
-  }
-
-  handler = this._events[type];
-
-  if (isUndefined(handler))
-    return false;
-
-  if (isFunction(handler)) {
-    switch (arguments.length) {
-      // fast cases
-      case 1:
-        handler.call(this);
-        break;
-      case 2:
-        handler.call(this, arguments[1]);
-        break;
-      case 3:
-        handler.call(this, arguments[1], arguments[2]);
-        break;
-      // slower
-      default:
-        len = arguments.length;
-        args = new Array(len - 1);
-        for (i = 1; i < len; i++)
-          args[i - 1] = arguments[i];
-        handler.apply(this, args);
-    }
-  } else if (isObject(handler)) {
-    len = arguments.length;
-    args = new Array(len - 1);
-    for (i = 1; i < len; i++)
-      args[i - 1] = arguments[i];
-
-    listeners = handler.slice();
-    len = listeners.length;
-    for (i = 0; i < len; i++)
-      listeners[i].apply(this, args);
-  }
-
-  return true;
-};
-
-EventEmitter.prototype.addListener = function(type, listener) {
-  var m;
-
-  if (!isFunction(listener))
-    throw TypeError('listener must be a function');
-
-  if (!this._events)
-    this._events = {};
-
-  // To avoid recursion in the case that type === "newListener"! Before
-  // adding it to the listeners, first emit "newListener".
-  if (this._events.newListener)
-    this.emit('newListener', type,
-              isFunction(listener.listener) ?
-              listener.listener : listener);
-
-  if (!this._events[type])
-    // Optimize the case of one listener. Don't need the extra array object.
-    this._events[type] = listener;
-  else if (isObject(this._events[type]))
-    // If we've already got an array, just append.
-    this._events[type].push(listener);
-  else
-    // Adding the second element, need to change to array.
-    this._events[type] = [this._events[type], listener];
-
-  // Check for listener leak
-  if (isObject(this._events[type]) && !this._events[type].warned) {
-    var m;
-    if (!isUndefined(this._maxListeners)) {
-      m = this._maxListeners;
-    } else {
-      m = EventEmitter.defaultMaxListeners;
-    }
-
-    if (m && m > 0 && this._events[type].length > m) {
-      this._events[type].warned = true;
-      console.error('(node) warning: possible EventEmitter memory ' +
-                    'leak detected. %d listeners added. ' +
-                    'Use emitter.setMaxListeners() to increase limit.',
-                    this._events[type].length);
-      console.trace();
-    }
-  }
-
-  return this;
-};
-
-EventEmitter.prototype.on = EventEmitter.prototype.addListener;
-
-EventEmitter.prototype.once = function(type, listener) {
-  if (!isFunction(listener))
-    throw TypeError('listener must be a function');
-
-  var fired = false;
-
-  function g() {
-    this.removeListener(type, g);
-
-    if (!fired) {
-      fired = true;
-      listener.apply(this, arguments);
-    }
-  }
-
-  g.listener = listener;
-  this.on(type, g);
-
-  return this;
-};
-
-// emits a 'removeListener' event iff the listener was removed
-EventEmitter.prototype.removeListener = function(type, listener) {
-  var list, position, length, i;
-
-  if (!isFunction(listener))
-    throw TypeError('listener must be a function');
-
-  if (!this._events || !this._events[type])
-    return this;
-
-  list = this._events[type];
-  length = list.length;
-  position = -1;
-
-  if (list === listener ||
-      (isFunction(list.listener) && list.listener === listener)) {
-    delete this._events[type];
-    if (this._events.removeListener)
-      this.emit('removeListener', type, listener);
-
-  } else if (isObject(list)) {
-    for (i = length; i-- > 0;) {
-      if (list[i] === listener ||
-          (list[i].listener && list[i].listener === listener)) {
-        position = i;
-        break;
-      }
-    }
-
-    if (position < 0)
-      return this;
-
-    if (list.length === 1) {
-      list.length = 0;
-      delete this._events[type];
-    } else {
-      list.splice(position, 1);
-    }
-
-    if (this._events.removeListener)
-      this.emit('removeListener', type, listener);
-  }
-
-  return this;
-};
-
-EventEmitter.prototype.removeAllListeners = function(type) {
-  var key, listeners;
-
-  if (!this._events)
-    return this;
-
-  // not listening for removeListener, no need to emit
-  if (!this._events.removeListener) {
-    if (arguments.length === 0)
-      this._events = {};
-    else if (this._events[type])
-      delete this._events[type];
-    return this;
-  }
-
-  // emit removeListener for all listeners on all events
-  if (arguments.length === 0) {
-    for (key in this._events) {
-      if (key === 'removeListener') continue;
-      this.removeAllListeners(key);
-    }
-    this.removeAllListeners('removeListener');
-    this._events = {};
-    return this;
-  }
-
-  listeners = this._events[type];
-
-  if (isFunction(listeners)) {
-    this.removeListener(type, listeners);
-  } else {
-    // LIFO order
-    while (listeners.length)
-      this.removeListener(type, listeners[listeners.length - 1]);
-  }
-  delete this._events[type];
-
-  return this;
-};
-
-EventEmitter.prototype.listeners = function(type) {
-  var ret;
-  if (!this._events || !this._events[type])
-    ret = [];
-  else if (isFunction(this._events[type]))
-    ret = [this._events[type]];
-  else
-    ret = this._events[type].slice();
-  return ret;
-};
-
-EventEmitter.listenerCount = function(emitter, type) {
-  var ret;
-  if (!emitter._events || !emitter._events[type])
-    ret = 0;
-  else if (isFunction(emitter._events[type]))
-    ret = 1;
-  else
-    ret = emitter._events[type].length;
-  return ret;
-};
-
-function isFunction(arg) {
-  return typeof arg === 'function';
+    return r
 }
 
-function isNumber(arg) {
-  return typeof arg === 'number';
+function createException() {
+    try {
+        throw new Error()
+    } catch(e) {
+        return e
+    }
 }
-
-function isObject(arg) {
-  return typeof arg === 'object' && arg !== null;
-}
-
-function isUndefined(arg) {
-  return arg === void 0;
-}
-
-},{}],4:[function(_dereq_,module,exports){
+},{"trimArguments":43}],2:[function(_dereq_,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -667,7 +365,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],5:[function(_dereq_,module,exports){
+},{}],3:[function(_dereq_,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -729,7 +427,7 @@ process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 
-},{}],6:[function(_dereq_,module,exports){
+},{}],4:[function(_dereq_,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -956,8 +654,8 @@ var substr = 'ab'.substr(-1) === 'b'
     }
 ;
 
-}).call(this,_dereq_("F:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"))
-},{"F:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":5}],7:[function(_dereq_,module,exports){
+}).call(this,_dereq_("D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"))
+},{"D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":3}],5:[function(_dereq_,module,exports){
 (function (global){
 /*! http://mths.be/punycode v1.2.4 by @mathias */
 ;(function(root) {
@@ -1468,7 +1166,7 @@ var substr = 'ab'.substr(-1) === 'b'
 }(this));
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],8:[function(_dereq_,module,exports){
+},{}],6:[function(_dereq_,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -1554,7 +1252,7 @@ var isArray = Array.isArray || function (xs) {
   return Object.prototype.toString.call(xs) === '[object Array]';
 };
 
-},{}],9:[function(_dereq_,module,exports){
+},{}],7:[function(_dereq_,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -1641,13 +1339,13 @@ var objectKeys = Object.keys || function (obj) {
   return res;
 };
 
-},{}],10:[function(_dereq_,module,exports){
+},{}],8:[function(_dereq_,module,exports){
 'use strict';
 
 exports.decode = exports.parse = _dereq_('./decode');
 exports.encode = exports.stringify = _dereq_('./encode');
 
-},{"./decode":8,"./encode":9}],11:[function(_dereq_,module,exports){
+},{"./decode":6,"./encode":7}],9:[function(_dereq_,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2356,14 +2054,14 @@ function isNullOrUndefined(arg) {
   return  arg == null;
 }
 
-},{"punycode":7,"querystring":10}],12:[function(_dereq_,module,exports){
+},{"punycode":5,"querystring":8}],10:[function(_dereq_,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],13:[function(_dereq_,module,exports){
+},{}],11:[function(_dereq_,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2952,8 +2650,8 @@ function hasOwnProperty(obj, prop) {
   return Object.prototype.hasOwnProperty.call(obj, prop);
 }
 
-}).call(this,_dereq_("F:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":12,"F:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":5,"inherits":4}],14:[function(_dereq_,module,exports){
+}).call(this,_dereq_("D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./support/isBuffer":10,"D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":3,"inherits":2}],12:[function(_dereq_,module,exports){
 (function (process){
 var Future = _dereq_('async-future')
 
@@ -3109,8 +2807,8 @@ function formatGroup(testResults, format, nestingLevel) {
 }
 
 
-}).call(this,_dereq_("F:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"))
-},{"F:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":5,"async-future":19}],15:[function(_dereq_,module,exports){
+}).call(this,_dereq_("D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"))
+},{"D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":3,"async-future":17}],13:[function(_dereq_,module,exports){
 "use strict";
 /* Copyright (c) 2014 Billy Tetrud - Free to use for any purpose: MIT License*/
 
@@ -3175,7 +2873,7 @@ module.exports = deadunitInternal({
     }
 })
 
-},{"./deadunit.internal":16,"async-future":19,"deadunit-core/deadunitCore.browser":20}],16:[function(_dereq_,module,exports){
+},{"./deadunit.internal":14,"async-future":17,"deadunit-core/deadunitCore.browser":18}],14:[function(_dereq_,module,exports){
 "use strict";
 /* Copyright (c) 2013 Billy Tetrud - Free to use for any purpose: MIT License*/
 
@@ -3211,7 +2909,7 @@ module.exports = function(options) {
 }
 
 
-},{"./basicFormatter":14,"./defaultFormats":17,"proto":44}],17:[function(_dereq_,module,exports){
+},{"./basicFormatter":12,"./defaultFormats":15,"proto":42}],15:[function(_dereq_,module,exports){
 var util = _dereq_("util")
 
 var Future = _dereq_('async-future')
@@ -3704,13 +3402,13 @@ function timeText(ms) {
         return Number(ms/1000).toPrecision(3)+'s'
 }
 
-},{"./basicFormatter":14,"./indent":18,"async-future":19,"util":13}],18:[function(_dereq_,module,exports){
+},{"./basicFormatter":12,"./indent":16,"async-future":17,"util":11}],16:[function(_dereq_,module,exports){
 
 module.exports = function(i, str) {
     return i+str.split("\n")       // get all lines
               .join("\n"+i)      // join all lines with an indent
 }
-},{}],19:[function(_dereq_,module,exports){
+},{}],17:[function(_dereq_,module,exports){
 /* Copyright (c) 2013 Billy Tetrud - Free to use for any purpose: MIT License*/
 
 var trimArgs = _dereq_("trimArguments")
@@ -4010,7 +3708,7 @@ function executeCallbacks(that, callbacks) {
     }
 }
 
-},{"trimArguments":45}],20:[function(_dereq_,module,exports){
+},{"trimArguments":43}],18:[function(_dereq_,module,exports){
 "use strict";
 /* Copyright (c) 2014 Billy Tetrud - Free to use for any purpose: MIT License*/
 
@@ -4164,7 +3862,7 @@ module.exports = deadunitCore({
         return stackinfo(e)
     }
 })
-},{"./deadunitCore":21,"./isRelative":22,"ajax":23,"async-future":25,"path":6,"source-map-resolve":28,"stackinfo":41}],21:[function(_dereq_,module,exports){
+},{"./deadunitCore":19,"./isRelative":20,"ajax":21,"async-future":23,"path":4,"source-map-resolve":26,"stackinfo":39}],19:[function(_dereq_,module,exports){
 "use strict";
 /* Copyright (c) 2013 Billy Tetrud - Free to use for any purpose: MIT License*/
 
@@ -4994,7 +4692,7 @@ function newError(message, ErrorPrototype) {
         return e
     }
 }
-},{"./isRelative":22,"./processResults":43,"async-future":25,"path":6,"proto":44,"source-map":29,"url":11}],22:[function(_dereq_,module,exports){
+},{"./isRelative":20,"./processResults":41,"async-future":23,"path":4,"proto":42,"source-map":27,"url":9}],20:[function(_dereq_,module,exports){
 var path = _dereq_('path')
 
 module.exports = function isRelative(p) {
@@ -5002,7 +4700,7 @@ module.exports = function isRelative(p) {
     var absolute = path.resolve(p)
     return normal != absolute && p.indexOf('://') === -1// second part for urls
 }
-},{"path":6}],23:[function(_dereq_,module,exports){
+},{"path":4}],21:[function(_dereq_,module,exports){
 var Future = _dereq_("async-future")
 
 // returns the XHR function or equivalent for use with ajax
@@ -5108,9 +4806,9 @@ exports.cacheGet = function(fn) {
 exports.cacheSet = function(fn) {
     setOnCache = fn
 }
-},{"async-future":24}],24:[function(_dereq_,module,exports){
-module.exports=_dereq_(19)
-},{"trimArguments":45}],25:[function(_dereq_,module,exports){
+},{"async-future":22}],22:[function(_dereq_,module,exports){
+module.exports=_dereq_(17)
+},{"trimArguments":43}],23:[function(_dereq_,module,exports){
 /* Copyright (c) 2013 Billy Tetrud - Free to use for any purpose: MIT License*/
 
 var trimArgs = _dereq_("trimArguments")
@@ -5411,7 +5109,7 @@ function executeCallbacks(that, callbacks) {
         }
     }
 }
-},{"trimArguments":45}],26:[function(_dereq_,module,exports){
+},{"trimArguments":43}],24:[function(_dereq_,module,exports){
 // Copyright 2014 Simon Lydell
 // X11 (“MIT”) Licensed. (See LICENSE.)
 
@@ -5460,7 +5158,7 @@ void (function(root, factory) {
 
 }));
 
-},{}],27:[function(_dereq_,module,exports){
+},{}],25:[function(_dereq_,module,exports){
 // Copyright 2014 Simon Lydell
 
 void (function(root, factory) {
@@ -5540,7 +5238,7 @@ void (function(root, factory) {
 
 }));
 
-},{}],28:[function(_dereq_,module,exports){
+},{}],26:[function(_dereq_,module,exports){
 // Copyright 2014 Simon Lydell
 // X11 (“MIT”) Licensed. (See LICENSE.)
 
@@ -5778,7 +5476,7 @@ void (function(root, factory) {
 
 }));
 
-},{"resolve-url":26,"source-map-url":27}],29:[function(_dereq_,module,exports){
+},{"resolve-url":24,"source-map-url":25}],27:[function(_dereq_,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -5788,7 +5486,7 @@ exports.SourceMapGenerator = _dereq_('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = _dereq_('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = _dereq_('./source-map/source-node').SourceNode;
 
-},{"./source-map/source-map-consumer":34,"./source-map/source-map-generator":35,"./source-map/source-node":36}],30:[function(_dereq_,module,exports){
+},{"./source-map/source-map-consumer":32,"./source-map/source-map-generator":33,"./source-map/source-node":34}],28:[function(_dereq_,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5887,7 +5585,7 @@ define(function (_dereq_, exports, module) {
 
 });
 
-},{"./util":37,"amdefine":38}],31:[function(_dereq_,module,exports){
+},{"./util":35,"amdefine":36}],29:[function(_dereq_,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6033,7 +5731,7 @@ define(function (_dereq_, exports, module) {
 
 });
 
-},{"./base64":32,"amdefine":38}],32:[function(_dereq_,module,exports){
+},{"./base64":30,"amdefine":36}],30:[function(_dereq_,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6077,7 +5775,7 @@ define(function (_dereq_, exports, module) {
 
 });
 
-},{"amdefine":38}],33:[function(_dereq_,module,exports){
+},{"amdefine":36}],31:[function(_dereq_,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6160,7 +5858,7 @@ define(function (_dereq_, exports, module) {
 
 });
 
-},{"amdefine":38}],34:[function(_dereq_,module,exports){
+},{"amdefine":36}],32:[function(_dereq_,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6640,7 +6338,7 @@ define(function (_dereq_, exports, module) {
 
 });
 
-},{"./array-set":30,"./base64-vlq":31,"./binary-search":33,"./util":37,"amdefine":38}],35:[function(_dereq_,module,exports){
+},{"./array-set":28,"./base64-vlq":29,"./binary-search":31,"./util":35,"amdefine":36}],33:[function(_dereq_,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7039,7 +6737,7 @@ define(function (_dereq_, exports, module) {
 
 });
 
-},{"./array-set":30,"./base64-vlq":31,"./util":37,"amdefine":38}],36:[function(_dereq_,module,exports){
+},{"./array-set":28,"./base64-vlq":29,"./util":35,"amdefine":36}],34:[function(_dereq_,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7428,7 +7126,7 @@ define(function (_dereq_, exports, module) {
 
 });
 
-},{"./source-map-generator":35,"./util":37,"amdefine":38}],37:[function(_dereq_,module,exports){
+},{"./source-map-generator":33,"./util":35,"amdefine":36}],35:[function(_dereq_,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7732,7 +7430,7 @@ define(function (_dereq_, exports, module) {
 
 });
 
-},{"amdefine":38}],38:[function(_dereq_,module,exports){
+},{"amdefine":36}],36:[function(_dereq_,module,exports){
 (function (process,__filename){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 0.1.0 Copyright (c) 2011, The Dojo Foundation All Rights Reserved.
@@ -8034,8 +7732,8 @@ function amdefine(module, requireFn) {
 
 module.exports = amdefine;
 
-}).call(this,_dereq_("F:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"),"/..\\node_modules\\deadunit\\node_modules\\deadunit-core\\node_modules\\source-map\\node_modules\\amdefine\\amdefine.js")
-},{"F:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":5,"path":6}],39:[function(_dereq_,module,exports){
+}).call(this,_dereq_("D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"),"/..\\node_modules\\deadunit\\node_modules\\deadunit-core\\node_modules\\source-map\\node_modules\\amdefine\\amdefine.js")
+},{"D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":3,"path":4}],37:[function(_dereq_,module,exports){
 
 
 module.exports = exceptionMode(createException()) // basically what browser this is
@@ -8086,7 +7784,7 @@ function createException() {
     }
 }
 
-},{}],40:[function(_dereq_,module,exports){
+},{}],38:[function(_dereq_,module,exports){
 // Domain Public by Eric Wendelin http://eriwen.com/ (2008)
 //                  Luke Smith http://lucassmith.name/ (2008)
 //                  Loic Dachary <loic@dachary.org> (2008)
@@ -8549,7 +8247,7 @@ function createException() {
 
 	return printStackTrace;
 }));
-},{}],41:[function(_dereq_,module,exports){
+},{}],39:[function(_dereq_,module,exports){
 var printStackTrace = _dereq_('stacktrace-js')
 var parsers = _dereq_('./tracelineParser')
 var mode = _dereq_('./exceptionMode')
@@ -8621,7 +8319,7 @@ module.exports.parsers = parsers
 module.exports.mode = mode
 module.exports.sourceCache = printStackTrace.implementation.prototype.sourceCache // expose this so you can consolidate caches together from different libraries
 
-},{"./exceptionMode":39,"./tracelineParser":42,"stacktrace-js":40}],42:[function(_dereq_,module,exports){
+},{"./exceptionMode":37,"./tracelineParser":40,"stacktrace-js":38}],40:[function(_dereq_,module,exports){
 
 module.exports = {
     chrome: function(line) {
@@ -8716,7 +8414,7 @@ var IE_ANONYMOUS = '('+IE_WHITESPACE+'*({anonymous}\\(\\)))@\\('+IE_FILE_AND_LIN
 var IE_NORMAL_FUNCTION = '('+IDENTIFIER_PATTERN_+')@'+IE_FILE_AND_LINE
 var IE_FUNCTION_CALL = '('+IE_NORMAL_FUNCTION+'|'+IE_ANONYMOUS+')'+IE_WHITESPACE+'*'
 var IE_STACK_LINE = new RegExp('^'+IE_FUNCTION_CALL+'$')
-},{}],43:[function(_dereq_,module,exports){
+},{}],41:[function(_dereq_,module,exports){
 module.exports = function returnResults(unitTestObject) {
 
     var results;
@@ -8846,7 +8544,7 @@ function eachTest(test, callback, parent) {
 
     callback(test, parent)
 }
-},{}],44:[function(_dereq_,module,exports){
+},{}],42:[function(_dereq_,module,exports){
 "use strict";
 /* Copyright (c) 2013 Billy Tetrud - Free to use for any purpose: MIT License*/
 
@@ -8942,7 +8640,7 @@ function normalizeErrorObject(ErrorObject, namePointer) {
         NormalizedError.prototype = new IntermediateInheritor()
     return NormalizedError
 }
-},{}],45:[function(_dereq_,module,exports){
+},{}],43:[function(_dereq_,module,exports){
 // resolves varargs variable into more usable form
 // args - should be a function arguments variable
 // returns a javascript Array object of arguments that doesn't count trailing undefined values in the length
@@ -8957,7 +8655,7 @@ module.exports = function(theArguments) {
     args.splice(-0, count)
     return args
 }
-},{}],46:[function(_dereq_,module,exports){
+},{}],44:[function(_dereq_,module,exports){
 "use strict";
 
 var Unit = _dereq_('deadunit/deadunit.browser')
@@ -8965,26 +8663,25 @@ var tests = _dereq_('./asyncFuturesTests')
 
 var test = Unit.test("Testing async futures", tests).writeHtml()
 
-},{"./asyncFuturesTests":47,"deadunit/deadunit.browser":15}],47:[function(_dereq_,module,exports){
+},{"./asyncFuturesTests":45,"deadunit/deadunit.browser":13}],45:[function(_dereq_,module,exports){
 
 var Future = _dereq_('../asyncFuture')
-Future.debug = true
 
-module.exports = function(t) {
-    this.count(14)
+// type can be either "browser" or "node"
+module.exports = function(t, type) {
+
+    //*
+    this.count(11)
 
 	var futures = []
 
     var f = new Future()
-    this.ok(f.id !== undefined, f.id)
     f.return(5)
     f.then(function(v) {
         t.ok(v===5)  // return before
     }).done()
 
     var f2 = new Future()
-    this.ok(f2.id !== undefined, f2.id)
-    this.ok(f.id !== f2.id)
     f2.then(function(v) {
         t.ok(v===6)  // return after
     }).done()
@@ -8992,10 +8689,6 @@ module.exports = function(t) {
 
     futures.push(f)
     futures.push(f2)
-
-    Future.debug = false
-    var nondebugTest = new Future
-    this.ok(nondebugTest.nondebugTest === undefined)
 
     t.test("immediate future", function(t) {
         this.count(1)
@@ -9011,7 +8704,7 @@ module.exports = function(t) {
 
     var f3, futureDotErrorIsDoneBeingMessedWith = new Future, exceptionTestsDone = new Future
     t.test("exceptions", function(t) {
-        this.count(9)
+        this.count(8)
 
         f3 = new Future()
         f3.throw(Error("test1"))
@@ -9094,39 +8787,12 @@ module.exports = function(t) {
                 },0)
             })
 
-            t.test("done should cause an asynchronous error (by default)", function(t) {
-                this.count(1)
-                var d = _dereq_('domain').create();
-                d.on('error', function(er) {
-                    t.ok(er === 'something',er)
-                })
-                d.run(function() {
-                    Future(true).then(function(){
-                        throw "something"
-                    }).done()
-                })
-            })
-
             exceptionTestsDone.return()
         })
 
     })
 
-    exceptionTestsDone.then(function() {
-        var futures = []
-
-        t.test("done should cause an asynchronous error (by default)", function(t) {
-            this.count(1)
-            var d = _dereq_('domain').create();
-            d.on('error', function(er) {
-                t.ok(er === 'something',er)
-            })
-            d.run(function() {
-                Future(true).then(function(){
-                    throw "something"
-                }).done()
-            })
-        })
+    return exceptionTestsDone.then(function() {
 
         t.test("chaining", function(t) {
             this.count(3)
@@ -9250,9 +8916,55 @@ module.exports = function(t) {
             )
         })
 
+        t.test('debug ids', function() {
+            Future.debug = true
+
+            var f = new Future()
+            this.ok(f.id !== undefined, f.id)
+
+            var f2 = new Future()
+            this.ok(f2.id !== undefined, f2.id)
+            this.ok(f.id !== f2.id)
+
+            Future.debug = false
+        })
+
+        t.test('long traces', function(t) {
+            this.count(2)
+
+            if(type === 'node')
+                var lineNumber = '286'
+            else
+                var lineNumber = '8952'
+
+            Future.debug=false // make sure long traces don't happen when debug is false
+            test(function(t, e) {
+                t.ok(e.stack.toString().indexOf(lineNumber) === -1, e.stack)
+            })
+
+            Future.debug = true
+            test(function(t, e) {
+                t.ok(e.stack.toString().indexOf(lineNumber) !== -1, e.stack)
+            })
+
+            function test(assertions) {
+                var f = new Future
+                f.then(function() {
+                    throw new Error("wuuuut")
+                }).catch(function(e) {
+                    t.log(e.stack)
+                    assertions(t, e)
+                })
+
+                setTimeout(function() {
+                    f.return(1)
+                })
+            }
+
+        })
 
         t.test("former bugs", function() {
-            this.count(10)
+            this.count(7)
 
             this.test("Return result of then", function(t) {
                 this.count(1)
@@ -9268,72 +8980,6 @@ module.exports = function(t) {
                         t.ok(result === 'wutup', result)
                     })
                 )
-            })
-
-            this.test("exception in returned future", function(t) {
-                this.count(1)
-
-                var f = new Future
-                futures.push(f)
-
-                var d = _dereq_('domain').create()
-                d.on('error', function(err) {
-                    t.ok(err.message === "Inner Exception1", err.message)
-                    f.return()
-                })
-                d.run(function() {
-                    Future(true).then(function() {
-                        var f = new Future
-                        f.throw(Error("Inner Exception1"))
-                        return f
-                    }).done()
-                })
-            })
-
-
-            this.test("exception in returned future, passed through a finally", function(t) {
-                this.count(2)
-
-                var f = new Future
-                futures.push(f)
-
-                var d = _dereq_('domain').create()
-                d.on('error', function(err) {
-                    t.ok(err.message === "Inner Exception2", err.message)
-                    f.return()
-                })
-                d.run(function() {
-                    Future(true).then(function() {
-                        var f = new Future
-                        f.throw(Error("Inner Exception2"))
-                        return f
-                    }).finally(function() {
-                        // do nothing
-                            t.ok(true)
-                    }).done()
-                })
-            })
-
-            this.test("exception in future returned from a finally", function(t) {
-                this.count(1)
-
-                var f = new Future
-                futures.push(f)
-
-                var d = _dereq_('domain').create()
-                d.on('error', function(err) {
-                    t.ok(true)
-                })
-                d.run(function() {
-                    Future(true).finally(function() {
-                        var innerf = new Future
-                        innerf.throw("test")
-
-                        f.return()
-
-                        return innerf
-                    }).done()
-                })
             })
 
             this.test("exception in returned future, passed to a catch", function(t) {
@@ -9434,22 +9080,11 @@ module.exports = function(t) {
                 }
             })
         })
+    })
 
-          /*
-
-        // longtraces
-        q.longStackSupport = true;
-        q.call(function() {
-            throw Error("test")
-        }).catch(function(e) {
-            console.log(e.stack)
-        }).fin(function() {
-            console.log("finally!")
-        })
-              */
-    }).done()
+    //*/
 }
 
-},{"../asyncFuture":1,"domain":2}]},{},[46])
-(46)
+},{"../asyncFuture":1}]},{},[44])
+(44)
 });

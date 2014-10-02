@@ -1,12 +1,11 @@
 
 var Future = require('../asyncFuture')
 
-
-module.exports = function(t) {
-
+// type can be either "browser" or "node"
+module.exports = function(t, type) {
 
     //*
-    this.count(12)
+    this.count(11)
 
 	var futures = []
 
@@ -39,7 +38,7 @@ module.exports = function(t) {
 
     var f3, futureDotErrorIsDoneBeingMessedWith = new Future, exceptionTestsDone = new Future
     t.test("exceptions", function(t) {
-        this.count(9)
+        this.count(8)
 
         f3 = new Future()
         f3.throw(Error("test1"))
@@ -122,39 +121,12 @@ module.exports = function(t) {
                 },0)
             })
 
-            t.test("done should cause an asynchronous error (by default)", function(t) {
-                this.count(1)
-                var d = require('domain').create();
-                d.on('error', function(er) {
-                    t.ok(er === 'something',er)
-                })
-                d.run(function() {
-                    Future(true).then(function(){
-                        throw "something"
-                    }).done()
-                })
-            })
-
             exceptionTestsDone.return()
         })
 
     })
 
-    exceptionTestsDone.then(function() {
-        var futures = []
-
-        t.test("done should cause an asynchronous error (by default)", function(t) {
-            this.count(1)
-            var d = require('domain').create();
-            d.on('error', function(er) {
-                t.ok(er === 'something',er)
-            })
-            d.run(function() {
-                Future(true).then(function(){
-                    throw "something"
-                }).done()
-            })
-        })
+    return exceptionTestsDone.then(function() {
 
         t.test("chaining", function(t) {
             this.count(3)
@@ -294,16 +266,19 @@ module.exports = function(t) {
         t.test('long traces', function(t) {
             this.count(2)
 
-            var lineNumber = '311'
+            if(type === 'node')
+                var lineNumber = '286'
+            else
+                var lineNumber = '8952'
 
             Future.debug=false // make sure long traces don't happen when debug is false
             test(function(t, e) {
-                t.ok(e.stack.toString().indexOf(lineNumber) === -1)
+                t.ok(e.stack.toString().indexOf(lineNumber) === -1, e.stack)
             })
 
             Future.debug = true
             test(function(t, e) {
-                t.ok(e.stack.toString().indexOf(lineNumber) !== -1)
+                t.ok(e.stack.toString().indexOf(lineNumber) !== -1, e.stack)
             })
 
             function test(assertions) {
@@ -323,7 +298,7 @@ module.exports = function(t) {
         })
 
         t.test("former bugs", function() {
-            this.count(10)
+            this.count(7)
 
             this.test("Return result of then", function(t) {
                 this.count(1)
@@ -339,72 +314,6 @@ module.exports = function(t) {
                         t.ok(result === 'wutup', result)
                     })
                 )
-            })
-
-            this.test("exception in returned future", function(t) {
-                this.count(1)
-
-                var f = new Future
-                futures.push(f)
-
-                var d = require('domain').create()
-                d.on('error', function(err) {
-                    t.ok(err.message === "Inner Exception1", err.message)
-                    f.return()
-                })
-                d.run(function() {
-                    Future(true).then(function() {
-                        var f = new Future
-                        f.throw(Error("Inner Exception1"))
-                        return f
-                    }).done()
-                })
-            })
-
-
-            this.test("exception in returned future, passed through a finally", function(t) {
-                this.count(2)
-
-                var f = new Future
-                futures.push(f)
-
-                var d = require('domain').create()
-                d.on('error', function(err) {
-                    t.ok(err.message === "Inner Exception2", err.message)
-                    f.return()
-                })
-                d.run(function() {
-                    Future(true).then(function() {
-                        var f = new Future
-                        f.throw(Error("Inner Exception2"))
-                        return f
-                    }).finally(function() {
-                        // do nothing
-                            t.ok(true)
-                    }).done()
-                })
-            })
-
-            this.test("exception in future returned from a finally", function(t) {
-                this.count(1)
-
-                var f = new Future
-                futures.push(f)
-
-                var d = require('domain').create()
-                d.on('error', function(err) {
-                    t.ok(true)
-                })
-                d.run(function() {
-                    Future(true).finally(function() {
-                        var innerf = new Future
-                        innerf.throw("test")
-
-                        f.return()
-
-                        return innerf
-                    }).done()
-                })
             })
 
             this.test("exception in returned future, passed to a catch", function(t) {
@@ -505,7 +414,7 @@ module.exports = function(t) {
                 }
             })
         })
-    }).done()
+    })
 
     //*/
 }

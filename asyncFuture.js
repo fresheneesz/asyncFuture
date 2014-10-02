@@ -16,7 +16,7 @@ function Future(value) {
 	} else {
         this.isResolved = false
         this.queue = []
-        this.n = 0 // future depth (for preventing "too much recursion" RangeErrors)
+        this.n = 1 // future depth (for preventing "too much recursion" RangeErrors)
         if(Future.debug) {
             curId++
             this.id = curId
@@ -120,9 +120,6 @@ Future.prototype.throw = function(e) {
 }
 
 function setNext(that, future) {
-    if(future !== undefined && !isLikeAFuture(future) )
-        throw Error("Value returned from then or catch *not* a Future: "+future)
-
     resolve(that, 'next', future)
 }
 
@@ -147,7 +144,7 @@ function waitOnResult(f, result, cb) {
             waitOnResult(f, this.next, cb)
         } else {
             try {
-                setNext(f, cb(this.result))
+                setNext(f, executeCallback(cb,this.result))
             } catch(e) {
                 f.throw(e)
             }
@@ -167,7 +164,7 @@ Future.prototype.then = function(cb) {
             waitOnResult(f, this.next, cb)
         else {
             try {
-                setNext(f, cb(this.result))
+                setNext(f, executeCallback(cb,this.result))
             } catch(e) {
                 f.throw(e)
             }
@@ -182,7 +179,7 @@ Future.prototype.catch = function(cb) {
     wait(this, function() {
         if(this.hasError) {
             try {
-                setNext(f, cb(this.error))
+                setNext(f, executeCallback(cb,this.error))
             } catch(e) {
                 f.throw(e)
             }
@@ -191,7 +188,7 @@ Future.prototype.catch = function(cb) {
                 f.return(v)
             }).catch(function(e) {
                 try {
-                    setNext(f, cb(e))
+                    setNext(f, executeCallback(cb,e))
                 } catch(e) {
                     f.throw(e)
                 }
@@ -211,17 +208,17 @@ Future.prototype.finally = function(cb) {
             var that = this
             if(this.hasNext) {
                 this.next.then(function(v) {
-                    var x = cb()
+                    var x = executeCallback(cb)
                     f.return(v)
                     return x
                 }).catch(function(e) {
-                    var x = cb()
+                    var x = executeCallback(cb)
                     f.throw(e)
                     return x
                 }).done()
             } else if(this.hasError) {
                 Future(true).then(function() {
-                    return cb()
+                    return executeCallback(cb)
                 }).then(function() {
                     f.throw(that.error)
                 }).catch(function(e) {
@@ -230,7 +227,7 @@ Future.prototype.finally = function(cb) {
 
             } else  {
                 Future(true).then(function() {
-                    return cb()
+                    return executeCallback(cb)
                 }).then(function() {
                     f.return(that.result)
                 }).catch(function(e) {
@@ -324,6 +321,15 @@ function executeCallbacks(that, callbacks) {
             unhandledErrorHandler(e)
         }
     }
+}
+
+// executes a callback and ensures that it returns a future
+function executeCallback(cb, arg) {
+    var r = cb(arg)
+    if(r !== undefined && !isLikeAFuture(r) )
+        throw Error("Value returned from then or catch ("+r+") is *not* a Future. Callback: "+cb.toString())
+
+    return r
 }
 
 function createException() {
