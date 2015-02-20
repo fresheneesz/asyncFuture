@@ -185,7 +185,7 @@ module.exports = function(t, type) {
         })
 
         t.test("working with callbacks", function(t) {
-            this.count(6)
+            this.count(8)
 
             function asyncFn(cb) {
                 cb(undefined, "hi")
@@ -238,6 +238,28 @@ module.exports = function(t, type) {
             f14.catch(function(e) {
                 t.ok(e.message === 'callbackException')
             })
+
+            var asyncFn2 = function(cb) {
+                cb('returnValue')
+            }
+            var objectWithMethods2 = {
+                asyncFn2: asyncFn2
+            }
+
+            // wrapSingleParameter for functions
+
+            var f11 = Future.wrapSingleParameter(asyncFn2)()
+            f11.then(function(x) {
+                t.ok(x === 'returnValue')
+            })
+            futures.push(f11)
+
+            // wrapSingleParameter for methods
+
+            var f13 = Future.wrapSingleParameter(objectWithMethods2, 'asyncFn2')()
+            f13.then(function(x) {
+                t.ok(x === 'returnValue')
+            })
         })
 
         t.test("immediate futures", function(t) {
@@ -266,10 +288,11 @@ module.exports = function(t, type) {
         t.test('long traces', function(t) {
             this.count(2)
 
+            // the line number of line A below: f.then(function() {
             if(type === 'node')
-                var lineNumber = '286'
+                var lineNumber = '309'
             else
-                var lineNumber = '8952'
+                var lineNumber = '8999'
 
             Future.debug=false // make sure long traces don't happen when debug is false
             test(function(t, e) {
@@ -283,7 +306,7 @@ module.exports = function(t, type) {
 
             function test(assertions) {
                 var f = new Future
-                f.then(function() {
+                f.then(function() {            // line A
                     throw new Error("wuuuut")
                 }).catch(function(e) {
                     t.log(e.stack)

@@ -135,12 +135,20 @@ Other Instance properties
 
 `f.resolved()` - returns true if the future has already been resolved, false otherwise.
 
-Static properties
+Static properties and methods
 -----------------
 
 `Future.all(<futures>` - returns a future that resolves when all futures inside resolve (or throws an error when one of the futures returns an error).
 
 `Future.wrap(<fn>)` - wraps a function that takes an errback so that it returns a future instead of calling an errback.
+
+`Future.wrap(<object>, <method>)` - wraps a method that takes an errback so that it returns a future instead of calling an errback. Example:
+
+* Example: `var wrappedMethod = Future.wrap(object, 'methodName')`
+
+`Future.wrapSingleParameter(<fn>)` - Like `Future.wrap` but for functions who's callback only takes one parameter - the return value (no error is available).
+
+`Future.wrapSingleParameter(<object>, <method>)` - `wrapSingleParameter` for object methods who's callback only takes one parameter.
 
 `Future.isLikeAFuture(<fn>)` - Returns true if the object looks like a future (duck typing). You might want to use this instead of `instanceof` because its possible that you might have different versions of async-future floating around (in which case `instanceof` might not work like you expect).
 
@@ -168,14 +176,23 @@ aFuture(false).then(function(result) {
 
 ```
 
-`Future.wrap(<object>, <method)` - wraps a method that takes an errback so that it returns a future instead of calling an errback. Example:
-
-* Example: `var wrappedMethod = Future.wrap(object, 'methodName')`
-
 `Future.error(<handler>)` - sets up a function that is called when an unhandled error happens. `<handler>` gets one parameter, the unhandled exception. Unhandled errors happen when `done` is called and an exception is thrown from the future.
 
 `Future.debug` - if true, gives each future a unique id (default is `false`) and enables long-stack-traces in exceptions (where the stack trace for the context in which `then`, `catch`, or `finally` is called in is printed below the original exception's stack trace).
 
+
+Usage in IE<9
+=============
+
+Catch is a reserved word in IE<9, meaning afuture.catch(func) throws a syntax error. To work around this, you can use a string to access the property:
+
+```javascript
+aFuture['catch'](function(err) {
+  // ...
+})
+```
+
+Note that most common minifiers employ this technique, making the minified code safe for old browsers and production without using this explicitly in your code.
 
 Todo
 ====
@@ -188,6 +205,7 @@ Todo
 Changelog
 ========
 
+* 1.0.5 - adding the `wrapSingleParameter` function
 * 1.0.4
     * changing a future's initial 'n' so that a setTimeout doesn't happen for the first few hundred chains
     * adding some info to "callback returned an object that isn't a future" error

@@ -90,6 +90,30 @@ Future.wrap = function() {
     }
 }
 
+// future wraps a function who's callback only takes one parameter - the return value (no error is available)
+// eg: function(result) {}
+Future.wrapSingleParameter = function() {
+    if(arguments.length === 1) {
+        var fn = arguments[0]
+    } else {
+        var object = arguments[0]
+        var method = arguments[1]
+        var fn = object[method]
+    }
+
+    return function() {
+        var args = Array.prototype.slice.call(arguments)
+		var future = new Future
+		args.push(function(result) {
+		    future.return(result)
+		})
+		var me = this
+        if(object) me = object
+        fn.apply(me, args)
+		return future
+    }
+}
+
 
 // default
 var unhandledErrorHandler = function(e) {
