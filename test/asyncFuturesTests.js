@@ -38,7 +38,7 @@ module.exports = function(t, type) {
 
     var f3, futureDotErrorIsDoneBeingMessedWith = new Future, exceptionTestsDone = new Future
     t.test("exceptions", function(t) {
-        this.count(8)
+        this.count(9)
 
         f3 = new Future()
         f3.throw(Error("test1"))
@@ -54,7 +54,8 @@ module.exports = function(t, type) {
         }).catch(function(e) {
             t.ok(e.message === "test2")  // throw after
         }).done()
-        f4.throw(Error("test2"))
+        var throwReturnValue = f4.throw(Error("test2"))
+        this.ok(throwReturnValue === f4)
 
         var f4 = new Future()
         f4.then(function(v) {
@@ -290,9 +291,9 @@ module.exports = function(t, type) {
 
             // the line number of line A below: f.then(function() {
             if(type === 'node')
-                var lineNumber = '309'
+                var lineNumber = '310'
             else
-                var lineNumber = '8999'
+                var lineNumber = '9001'
 
             Future.debug=false // make sure long traces don't happen when debug is false
             test(function(t, e) {

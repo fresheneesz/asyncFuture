@@ -205,6 +205,7 @@ Todo
 Changelog
 ========
 
+* 1.0.6 - `Future.throw` now returns the future, so you can chain and/or return using it ( https://github.com/fresheneesz/asyncFuture/issues/2 )
 * 1.0.5 - adding the `wrapSingleParameter` function
 * 1.0.4
     * changing a future's initial 'n' so that a setTimeout doesn't happen for the first few hundred chains

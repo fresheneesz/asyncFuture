@@ -91,6 +91,30 @@ Future.wrap = function() {
     }
 }
 
+// future wraps a function who's callback only takes one parameter - the return value (no error is available)
+// eg: function(result) {}
+Future.wrapSingleParameter = function() {
+    if(arguments.length === 1) {
+        var fn = arguments[0]
+    } else {
+        var object = arguments[0]
+        var method = arguments[1]
+        var fn = object[method]
+    }
+
+    return function() {
+        var args = Array.prototype.slice.call(arguments)
+		var future = new Future
+		args.push(function(result) {
+		    future.return(result)
+		})
+		var me = this
+        if(object) me = object
+        fn.apply(me, args)
+		return future
+    }
+}
+
 
 // default
 var unhandledErrorHandler = function(e) {
@@ -118,6 +142,7 @@ Future.prototype.throw = function(e) {
         e.stack += '\n    ---------------------------\n'+this.location.stack.split('\n').slice(4).join('\n')
     }
     resolve(this, 'error', e)
+    return this
 }
 
 function setNext(that, future) {
@@ -654,8 +679,8 @@ var substr = 'ab'.substr(-1) === 'b'
     }
 ;
 
-}).call(this,_dereq_("D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"))
-},{"D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":3}],5:[function(_dereq_,module,exports){
+}).call(this,_dereq_("D:\\billysFile\\code\\javascript\\nodejs\\modules\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"))
+},{"D:\\billysFile\\code\\javascript\\nodejs\\modules\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":3}],5:[function(_dereq_,module,exports){
 (function (global){
 /*! http://mths.be/punycode v1.2.4 by @mathias */
 ;(function(root) {
@@ -2650,8 +2675,8 @@ function hasOwnProperty(obj, prop) {
   return Object.prototype.hasOwnProperty.call(obj, prop);
 }
 
-}).call(this,_dereq_("D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":10,"D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":3,"inherits":2}],12:[function(_dereq_,module,exports){
+}).call(this,_dereq_("D:\\billysFile\\code\\javascript\\nodejs\\modules\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./support/isBuffer":10,"D:\\billysFile\\code\\javascript\\nodejs\\modules\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":3,"inherits":2}],12:[function(_dereq_,module,exports){
 (function (process){
 var Future = _dereq_('async-future')
 
@@ -2807,8 +2832,8 @@ function formatGroup(testResults, format, nestingLevel) {
 }
 
 
-}).call(this,_dereq_("D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"))
-},{"D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":3,"async-future":17}],13:[function(_dereq_,module,exports){
+}).call(this,_dereq_("D:\\billysFile\\code\\javascript\\nodejs\\modules\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"))
+},{"D:\\billysFile\\code\\javascript\\nodejs\\modules\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":3,"async-future":17}],13:[function(_dereq_,module,exports){
 "use strict";
 /* Copyright (c) 2014 Billy Tetrud - Free to use for any purpose: MIT License*/
 
@@ -7732,8 +7757,8 @@ function amdefine(module, requireFn) {
 
 module.exports = amdefine;
 
-}).call(this,_dereq_("D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"),"/..\\node_modules\\deadunit\\node_modules\\deadunit-core\\node_modules\\source-map\\node_modules\\amdefine\\amdefine.js")
-},{"D:\\billysFile\\code\\javascript\\nodejs\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":3,"path":4}],37:[function(_dereq_,module,exports){
+}).call(this,_dereq_("D:\\billysFile\\code\\javascript\\nodejs\\modules\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js"),"/..\\node_modules\\deadunit\\node_modules\\deadunit-core\\node_modules\\source-map\\node_modules\\amdefine\\amdefine.js")
+},{"D:\\billysFile\\code\\javascript\\nodejs\\modules\\asyncFuture\\node_modules\\build-modules\\node_modules\\browserify\\node_modules\\insert-module-globals\\node_modules\\process\\browser.js":3,"path":4}],37:[function(_dereq_,module,exports){
 
 
 module.exports = exceptionMode(createException()) // basically what browser this is
@@ -8704,7 +8729,7 @@ module.exports = function(t, type) {
 
     var f3, futureDotErrorIsDoneBeingMessedWith = new Future, exceptionTestsDone = new Future
     t.test("exceptions", function(t) {
-        this.count(8)
+        this.count(9)
 
         f3 = new Future()
         f3.throw(Error("test1"))
@@ -8720,7 +8745,8 @@ module.exports = function(t, type) {
         }).catch(function(e) {
             t.ok(e.message === "test2")  // throw after
         }).done()
-        f4.throw(Error("test2"))
+        var throwReturnValue = f4.throw(Error("test2"))
+        this.ok(throwReturnValue === f4)
 
         var f4 = new Future()
         f4.then(function(v) {
@@ -8851,7 +8877,7 @@ module.exports = function(t, type) {
         })
 
         t.test("working with callbacks", function(t) {
-            this.count(6)
+            this.count(8)
 
             function asyncFn(cb) {
                 cb(undefined, "hi")
@@ -8904,6 +8930,28 @@ module.exports = function(t, type) {
             f14.catch(function(e) {
                 t.ok(e.message === 'callbackException')
             })
+
+            var asyncFn2 = function(cb) {
+                cb('returnValue')
+            }
+            var objectWithMethods2 = {
+                asyncFn2: asyncFn2
+            }
+
+            // wrapSingleParameter for functions
+
+            var f11 = Future.wrapSingleParameter(asyncFn2)()
+            f11.then(function(x) {
+                t.ok(x === 'returnValue')
+            })
+            futures.push(f11)
+
+            // wrapSingleParameter for methods
+
+            var f13 = Future.wrapSingleParameter(objectWithMethods2, 'asyncFn2')()
+            f13.then(function(x) {
+                t.ok(x === 'returnValue')
+            })
         })
 
         t.test("immediate futures", function(t) {
@@ -8932,10 +8980,11 @@ module.exports = function(t, type) {
         t.test('long traces', function(t) {
             this.count(2)
 
+            // the line number of line A below: f.then(function() {
             if(type === 'node')
-                var lineNumber = '286'
+                var lineNumber = '310'
             else
-                var lineNumber = '8952'
+                var lineNumber = '9001'
 
             Future.debug=false // make sure long traces don't happen when debug is false
             test(function(t, e) {
@@ -8949,7 +8998,7 @@ module.exports = function(t, type) {
 
             function test(assertions) {
                 var f = new Future
-                f.then(function() {
+                f.then(function() {            // line A
                     throw new Error("wuuuut")
                 }).catch(function(e) {
                     t.log(e.stack)

@@ -141,6 +141,7 @@ Future.prototype.throw = function(e) {
         e.stack += '\n    ---------------------------\n'+this.location.stack.split('\n').slice(4).join('\n')
     }
     resolve(this, 'error', e)
+    return this
 }
 
 function setNext(that, future) {
