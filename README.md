@@ -8,6 +8,7 @@ Why use async-future?
 * If you want to avoid callback-hell
 * If you want exception bubbling with try-catch-finally semantics for asynchronous code
 * If you ever need to wait for two or more asynchronous calls to complete before executing some code
+* If you want to use [the fastest promise library](http://jsperf.com/promise-comparisons/142)
 
 Examples
 =======
