@@ -10,6 +10,8 @@ Why use async-future?
 * If you ever need to wait for two or more asynchronous calls to complete before executing some code
 * If you want to use [the fastest promise library](http://jsperf.com/promise-comparisons/142)
 
+Read more about how [promises simplify asyncronous programming](http://know.cujojs.com/tutorials/async/simplifying-async-with-promises).
+
 Examples
 =======
 
