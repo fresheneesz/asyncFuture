@@ -6,9 +6,8 @@ A simple, powerful library for managing asynchronous control flow and saner hand
 Why use async-future?
 =====================
 * If you want to avoid callback-hell
-* If you want exception bubbling with try-catch-finally semantics for asynchronous code
+* If you want exception bubbling with familiar and well understood try-catch-finally semantics for asynchronous code
 * If you ever need to wait for two or more asynchronous calls to complete before executing some code
-* If you want to use [the fastest promise library](http://jsperf.com/promise-comparisons/142)
 
 Read more about how [promises simplify asyncronous programming](http://know.cujojs.com/tutorials/async/simplifying-async-with-promises).
 
@@ -66,16 +65,6 @@ function asyncFn2(parameter, /*more parameters if you want, */ callback) {
     }
 }
 ```
-
-Why use async-future over ...
-=============================
-* Has familiar and well understood try-catch-finally semantics
-* [jQuery deferred](http://api.jquery.com/jQuery.Deferred/) doesn't bubble exceptions
-* [Q promises](https://github.com/kriskowal/q) doesn't give you the flexibility to resolve your promises, rather it splits things into promises and deffereds. This makes things both more complicated and more restrictive.
-* [fibers/future](https://github.com/laverdet/node-fibers) has a nicer interface, but only works on node.js
-* [FutureJs](https://github.com/FuturesJS/FuturesJS) doesn't have very good documentation (so its hard to really know)
-* [parallel.js](http://adambom.github.io/parallel.js/) is more complicated and doesn't help you bubble exceptions
-* [substack's node-seq](https://github.com/substack/node-seq) is also much more complicated, and doesn't have sane semantics for passing futures/promises out of functions
 
 Install
 =======
@@ -197,9 +186,32 @@ aFuture['catch'](function(err) {
 
 Note that most common minifiers employ this technique, making the minified code safe for old browsers and production without using this explicitly in your code.
 
+Performance
+==============
+* http://jsperf.com/promise-comparisons/142
+* http://jsperf.com/promise-comparisons/144 - probably a more accurate test
+
+Why use async-future over ...
+=============================
+* [jQuery deferred](http://api.jquery.com/jQuery.Deferred/) doesn't bubble exceptions
+* [Q promises](https://github.com/kriskowal/q) doesn't give you the flexibility to resolve your promises, rather it splits things into promises and deffereds. This makes things both more complicated and more restrictive.
+* [fibers/future](https://github.com/laverdet/node-fibers) has a nicer interface, but only works on node.js
+* [when.js](https://github.com/cujojs/when) has no way easy to chain futures together.
+* [parallel.js](http://adambom.github.io/parallel.js/) is more complicated and doesn't help you bubble exceptions
+* [substack's node-seq](https://github.com/substack/node-seq) is also much more complicated, and doesn't have sane semantics for passing futures/promises out of functions
+
 Todo
 ====
 
+* Consider adding a way to close over a whole function (to ensure errors are all handled through the future
+    * Future.closure method? `return Future.closure(function() {...})
+    * Function.task() like with fibers/future?
+* Maybe allow then and catch callbacks to return arrays of future, which would allow you to do something like this:
+    future.then(function() {
+       return [Future(one), future2]
+    }).then(function(one, two) {
+        // use one and two
+    })
 * Think about how to handle domains - right now `done` throws into whatever domain the beginning of the chain was called in, instead of the context `done` was called in
  * This might be ok since `done` is intended to be a safety net, and not generally used to catch and report errors
 * Standalone bundle (via ) [build-modules](https://github.com/fresheneesz/buildModules)
