@@ -1,3 +1,5 @@
+***DEPRECATED*** - I'm deprecating async-future in favor of [bluebird promises](https://github.com/petkaantonov/bluebird), which is 10 times faster in simple cases, and probably moreso in some complex cases, despite this module's respectable performance in comparison to other futures modules. Bluebird is painstakingly optimized, including its powerful set of utilities. It does away with `done`, has a great cancellation api, a super useful `bind` method, and isn't bloated.
+
 `async-future`
 ============
 
